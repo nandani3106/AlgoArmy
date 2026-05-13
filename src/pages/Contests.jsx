@@ -1,25 +1,61 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Filter, Zap, Trophy, ChevronRight } from 'lucide-react';
+import { Search, Filter, Zap, Trophy, ChevronRight, Loader2 } from 'lucide-react';
 import MainLayout from '../components/MainLayout';
 import ContestCard from '../components/ContestCard';
 import { motion } from 'framer-motion';
 
-const MOCK_CONTESTS = [
-  { id: 1, name: 'Weekly Challenge #12', difficulty: 'Medium', date: 'May 15, 2026', time: '10:00 PM', duration: '2h', participants: '1.2k+', status: 'Upcoming', prize: '$500' },
-  { id: 2, name: 'Dynamic Programming Battle', difficulty: 'Hard', date: 'May 18, 2026', time: '09:00 PM', duration: '1.5h', participants: '800+', status: 'Upcoming', prize: '$1000' },
-  { id: 3, name: 'Graph Master Contest', difficulty: 'Extreme', date: 'May 20, 2026', time: '08:00 PM', duration: '3h', participants: '500+', status: 'Upcoming', prize: '$2000' },
-  { id: 4, name: 'Beginner Blitz', difficulty: 'Easy', date: 'May 12, 2026', time: '06:00 PM', duration: '1h', participants: '3k+', status: 'Live', prize: 'Swags' },
-  { id: 5, name: 'Algorithm Sprint #5', difficulty: 'Medium', date: 'May 10, 2026', time: '04:00 PM', duration: '2h', participants: '2.5k+', status: 'Completed' },
-  { id: 6, name: 'Binary Search Bonanza', difficulty: 'Easy', date: 'May 08, 2026', time: '05:00 PM', duration: '1.5h', participants: '1.8k+', status: 'Completed' },
-];
+const API_BASE = 'http://localhost:5000';
 
 const Contests = () => {
   const navigate = useNavigate();
   const [filter, setFilter] = useState('All');
   const [search, setSearch] = useState('');
+  const [contests, setContests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const filteredContests = MOCK_CONTESTS.filter(c => {
+  useEffect(() => {
+    const fetchContests = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/contests`);
+        const data = await res.json();
+
+        if (data.success) {
+          // Map backend data to ContestCard shape
+          const mapped = data.contests.map((c) => {
+            const start = new Date(c.startTime);
+            return {
+              id: c._id,
+              name: c.title,
+              difficulty: c.difficulty,
+              date: start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+              time: start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+              duration: c.durationMinutes >= 60
+                ? `${Math.floor(c.durationMinutes / 60)}h${c.durationMinutes % 60 ? ` ${c.durationMinutes % 60}m` : ''}`
+                : `${c.durationMinutes}m`,
+              participants: c.participantsCount >= 1000
+                ? `${(c.participantsCount / 1000).toFixed(1)}k+`
+                : `${c.participantsCount}`,
+              status: c.status.charAt(0).toUpperCase() + c.status.slice(1),
+              prize: c.prizes || '',
+            };
+          });
+          setContests(mapped);
+        } else {
+          setError('Failed to load contests.');
+        }
+      } catch (err) {
+        setError('Server not reachable.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchContests();
+  }, []);
+
+  const filteredContests = contests.filter(c => {
     const matchesFilter = filter === 'All' || c.status === filter;
     const matchesSearch = c.name.toLowerCase().includes(search.toLowerCase());
     return matchesFilter && matchesSearch;
@@ -87,33 +123,48 @@ const Contests = () => {
           </div>
         </div>
 
+        {/* Loading / Error */}
+        {loading && (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 size={40} className="animate-spin text-orange-500" />
+          </div>
+        )}
+
+        {error && (
+          <div className="text-center py-20">
+            <p className="text-red-500 font-bold">{error}</p>
+          </div>
+        )}
+
         {/* Contest Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredContests.length > 0 ? (
-            filteredContests.map((contest, idx) => (
-              <motion.div
-                key={contest.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.1 }}
-              >
-                <ContestCard 
-                  contest={contest} 
-                  onDetails={() => navigate(`/contests/${contest.id}`)}
-                  onRegister={() => navigate(`/contests/${contest.id}`)}
-                />
-              </motion.div>
-            ))
-          ) : (
-            <div className="col-span-full py-20 text-center">
-              <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Search size={32} className="text-orange-300" />
+        {!loading && !error && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {filteredContests.length > 0 ? (
+              filteredContests.map((contest, idx) => (
+                <motion.div
+                  key={contest.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.1 }}
+                >
+                  <ContestCard 
+                    contest={contest} 
+                    onDetails={() => navigate(`/contests/${contest.id}`)}
+                    onRegister={() => navigate(`/contests/${contest.id}`)}
+                  />
+                </motion.div>
+              ))
+            ) : (
+              <div className="col-span-full py-20 text-center">
+                <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Search size={32} className="text-orange-300" />
+                </div>
+                <h3 className="text-xl font-bold text-[#0B1B3B]">No contests found</h3>
+                <p className="text-slate-500">Try adjusting your search or filters.</p>
               </div>
-              <h3 className="text-xl font-bold text-[#0B1B3B]">No contests found</h3>
-              <p className="text-slate-500">Try adjusting your search or filters.</p>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
     </MainLayout>
   );
