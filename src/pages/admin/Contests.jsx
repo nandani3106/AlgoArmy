@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
+import { useTheme } from "../../context/ThemeContext";
 
 export default function Contests() {
+  const { isDark } = useTheme();
   const [contests, setContests] = useState([]);
 
   const [form, setForm] = useState({
@@ -59,16 +61,26 @@ export default function Contests() {
     alert("Contest created!");
   };
 
+  const inputClass = `border rounded-xl px-4 py-3 ${
+    isDark
+      ? 'bg-[#1a1d2b] border-[#2d3348] text-slate-200 placeholder:text-slate-500'
+      : ''
+  }`;
+
   return (
     <>
-      <h1 className="text-3xl font-bold mb-8">
+      <h1 className={`text-3xl font-bold mb-8 ${isDark ? 'text-white' : ''}`}>
         Contest Management
       </h1>
 
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+      <div className={`rounded-2xl p-6 shadow-sm border ${
+        isDark
+          ? 'bg-[#151823] border-[#1e293b]'
+          : 'bg-white border-slate-200'
+      }`}>
 
         {/* Basic Info */}
-        <h2 className="text-xl font-semibold mb-6">
+        <h2 className={`text-xl font-semibold mb-6 ${isDark ? 'text-white' : ''}`}>
           Create New Contest
         </h2>
 
@@ -79,7 +91,7 @@ export default function Contests() {
             onChange={(e) =>
               handleChange("title", e.target.value)
             }
-            className="border rounded-xl px-4 py-3"
+            className={inputClass}
           />
 
           <select
@@ -87,7 +99,7 @@ export default function Contests() {
             onChange={(e) =>
               handleChange("type", e.target.value)
             }
-            className="border rounded-xl px-4 py-3"
+            className={inputClass}
           >
             <option>Public</option>
             <option>Private</option>
@@ -102,7 +114,7 @@ export default function Contests() {
                 e.target.value
               )
             }
-            className="border rounded-xl px-4 py-3"
+            className={inputClass}
           >
             <option>Easy</option>
             <option>Medium</option>
@@ -119,7 +131,7 @@ export default function Contests() {
                 e.target.value
               )
             }
-            className="border rounded-xl px-4 py-3"
+            className={inputClass}
           />
         </div>
 
@@ -133,7 +145,7 @@ export default function Contests() {
               e.target.value
             )
           }
-          className="w-full border rounded-xl px-4 py-3 mt-4"
+          className={`w-full mt-4 ${inputClass}`}
         />
 
         {/* Dates */}
@@ -147,7 +159,7 @@ export default function Contests() {
                 e.target.value
               )
             }
-            className="border rounded-xl px-4 py-3"
+            className={inputClass}
           />
 
           <input
@@ -159,12 +171,12 @@ export default function Contests() {
                 e.target.value
               )
             }
-            className="border rounded-xl px-4 py-3"
+            className={inputClass}
           />
         </div>
 
         {/* Select Problems */}
-        <h3 className="text-lg font-semibold mt-8 mb-4">
+        <h3 className={`text-lg font-semibold mt-8 mb-4 ${isDark ? 'text-white' : ''}`}>
           Select DSA Problems
         </h3>
 
@@ -172,7 +184,7 @@ export default function Contests() {
           {availableProblems.map((problem) => (
             <label
               key={problem}
-              className="flex items-center gap-2"
+              className={`flex items-center gap-2 ${isDark ? 'text-slate-300' : ''}`}
             >
               <input
                 type="checkbox"
@@ -189,12 +201,12 @@ export default function Contests() {
         </div>
 
         {/* Contest Rules */}
-        <h3 className="text-lg font-semibold mt-8 mb-4">
+        <h3 className={`text-lg font-semibold mt-8 mb-4 ${isDark ? 'text-white' : ''}`}>
           Contest Rules
         </h3>
 
         <div className="grid md:grid-cols-2 gap-4">
-          <label className="flex gap-2">
+          <label className={`flex gap-2 ${isDark ? 'text-slate-300' : ''}`}>
             <input
               type="checkbox"
               checked={form.liveLeaderboard}
@@ -208,7 +220,7 @@ export default function Contests() {
             Live Leaderboard
           </label>
 
-          <label className="flex gap-2">
+          <label className={`flex gap-2 ${isDark ? 'text-slate-300' : ''}`}>
             <input
               type="checkbox"
               checked={form.freezeLeaderboard}
@@ -222,7 +234,7 @@ export default function Contests() {
             Freeze Leaderboard
           </label>
 
-          <label className="flex gap-2">
+          <label className={`flex gap-2 ${isDark ? 'text-slate-300' : ''}`}>
             <input
               type="checkbox"
               checked={form.wrongPenalty}
@@ -236,7 +248,7 @@ export default function Contests() {
             Wrong Submission Penalty
           </label>
 
-          <label className="flex gap-2">
+          <label className={`flex gap-2 ${isDark ? 'text-slate-300' : ''}`}>
             <input
               type="checkbox"
               checked={form.partialScoring}
@@ -260,7 +272,7 @@ export default function Contests() {
                 e.target.value
               )
             }
-            className="border rounded-xl px-4 py-3"
+            className={inputClass}
           />
 
           <select
@@ -268,7 +280,7 @@ export default function Contests() {
             onChange={(e) =>
               handleChange("status", e.target.value)
             }
-            className="border rounded-xl px-4 py-3"
+            className={inputClass}
           >
             <option>Draft</option>
             <option>Published</option>
@@ -278,14 +290,14 @@ export default function Contests() {
 
         <button
           onClick={handleCreate}
-          className="mt-8 bg-orange-500 text-white px-6 py-3 rounded-xl flex items-center gap-2"
+          className="mt-8 bg-orange-500 text-white px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-orange-600 transition"
         >
           <Plus size={18} />
           Create Contest
         </button>
       </div>
 
-      <div className="mt-6 text-slate-600">
+      <div className={`mt-6 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
         Total Contests: {contests.length}
       </div>
     </>

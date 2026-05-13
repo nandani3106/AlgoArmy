@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
+import { useTheme } from "../../context/ThemeContext";
 
 export default function Problems() {
+  const { isDark } = useTheme();
   const [problems, setProblems] = useState([]);
 
   const [form, setForm] = useState({
@@ -55,15 +57,25 @@ export default function Problems() {
     });
   };
 
+  const inputClass = `border rounded-xl px-4 py-3 ${
+    isDark
+      ? 'bg-[#1a1d2b] border-[#2d3348] text-slate-200 placeholder:text-slate-500'
+      : ''
+  }`;
+
   return (
     <>
-      <h1 className="text-3xl font-bold mb-8">
+      <h1 className={`text-3xl font-bold mb-8 ${isDark ? 'text-white' : ''}`}>
         DSA Problem Management
       </h1>
 
       {/* Form */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-        <h2 className="text-xl font-semibold mb-6">
+      <div className={`rounded-2xl p-6 shadow-sm border ${
+        isDark
+          ? 'bg-[#151823] border-[#1e293b]'
+          : 'bg-white border-slate-200'
+      }`}>
+        <h2 className={`text-xl font-semibold mb-6 ${isDark ? 'text-white' : ''}`}>
           Add New Problem
         </h2>
 
@@ -76,7 +88,7 @@ export default function Problems() {
             onChange={(e) =>
               handleChange("title", e.target.value)
             }
-            className="border rounded-xl px-4 py-3"
+            className={inputClass}
           />
 
           <input
@@ -89,7 +101,7 @@ export default function Problems() {
                 e.target.value
               )
             }
-            className="border rounded-xl px-4 py-3"
+            className={inputClass}
           />
 
           <select
@@ -100,7 +112,7 @@ export default function Problems() {
                 e.target.value
               )
             }
-            className="border rounded-xl px-4 py-3"
+            className={inputClass}
           >
             <option>Easy</option>
             <option>Medium</option>
@@ -112,7 +124,7 @@ export default function Problems() {
             onChange={(e) =>
               handleChange("tag", e.target.value)
             }
-            className="border rounded-xl px-4 py-3"
+            className={inputClass}
           >
             <option>Array</option>
             <option>String</option>
@@ -132,7 +144,7 @@ export default function Problems() {
                 e.target.value
               )
             }
-            className="border rounded-xl px-4 py-3"
+            className={inputClass}
           />
 
           <select
@@ -143,7 +155,7 @@ export default function Problems() {
                 e.target.value
               )
             }
-            className="border rounded-xl px-4 py-3"
+            className={inputClass}
           >
             <option>Draft</option>
             <option>Published</option>
@@ -162,7 +174,7 @@ export default function Problems() {
                 e.target.value
               )
             }
-            className="w-full border rounded-xl px-4 py-3"
+            className={`w-full ${inputClass}`}
           />
 
           <textarea
@@ -175,7 +187,7 @@ export default function Problems() {
                 e.target.value
               )
             }
-            className="w-full border rounded-xl px-4 py-3"
+            className={`w-full ${inputClass}`}
           />
 
           <textarea
@@ -188,7 +200,7 @@ export default function Problems() {
                 e.target.value
               )
             }
-            className="w-full border rounded-xl px-4 py-3"
+            className={`w-full ${inputClass}`}
           />
 
           <textarea
@@ -201,7 +213,7 @@ export default function Problems() {
                 e.target.value
               )
             }
-            className="w-full border rounded-xl px-4 py-3"
+            className={`w-full ${inputClass}`}
           />
 
           <textarea
@@ -214,12 +226,12 @@ export default function Problems() {
                 e.target.value
               )
             }
-            className="w-full border rounded-xl px-4 py-3"
+            className={`w-full ${inputClass}`}
           />
         </div>
 
         {/* Starter Code */}
-        <h3 className="text-lg font-semibold mt-8 mb-4">
+        <h3 className={`text-lg font-semibold mt-8 mb-4 ${isDark ? 'text-white' : ''}`}>
           Starter Code Templates
         </h3>
 
@@ -234,7 +246,7 @@ export default function Problems() {
                 e.target.value
               )
             }
-            className="w-full border rounded-xl px-4 py-3 font-mono"
+            className={`w-full font-mono ${inputClass}`}
           />
 
           <textarea
@@ -247,7 +259,7 @@ export default function Problems() {
                 e.target.value
               )
             }
-            className="w-full border rounded-xl px-4 py-3 font-mono"
+            className={`w-full font-mono ${inputClass}`}
           />
 
           <textarea
@@ -260,7 +272,7 @@ export default function Problems() {
                 e.target.value
               )
             }
-            className="w-full border rounded-xl px-4 py-3 font-mono"
+            className={`w-full font-mono ${inputClass}`}
           />
 
           <textarea
@@ -273,13 +285,13 @@ export default function Problems() {
                 e.target.value
               )
             }
-            className="w-full border rounded-xl px-4 py-3 font-mono"
+            className={`w-full font-mono ${inputClass}`}
           />
         </div>
 
         <button
           onClick={handleCreate}
-          className="mt-8 bg-orange-500 text-white px-6 py-3 rounded-xl flex items-center gap-2"
+          className="mt-8 bg-orange-500 text-white px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-orange-600 transition"
         >
           <Plus size={18} />
           Add Problem
@@ -287,7 +299,7 @@ export default function Problems() {
       </div>
 
       {/* Problem count */}
-      <div className="mt-6 text-slate-600">
+      <div className={`mt-6 ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
         Total Problems Added: {problems.length}
       </div>
     </>

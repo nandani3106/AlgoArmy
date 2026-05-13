@@ -335,3 +335,44 @@ body {
   background-clip: text;
   color: transparent;
 }
+
+/* ============================
+   ADMIN PANEL DARK MODE
+   ============================ */
+
+/* Admin custom backgrounds */
+.dark .bg-\[\#F8F4EC\] {
+  background-color: #0a0a0f !important;
+}
+
+.dark .bg-\[\#FFF8EE\] {
+  background-color: rgba(249, 115, 22, 0.08) !important;
+}
+
+.dark .bg-\[\#FFF4E5\] {
+  background-color: rgba(249, 115, 22, 0.1) !important;
+}
+
+.dark .bg-\[\#FAF8F3\] {
+  background-color: #1a1d2b !important;
+}
+
+/* Admin custom borders */
+.dark .border-\[\#ECE7DF\] {
+  border-color: #1e293b !important;
+}
+
+/* Admin custom text */
+.dark .text-\[\#0D1B4C\] {
+  color: #e2e8f0 !important;
+}
+
+/* Admin orange-100 badge backgrounds */
+.dark .bg-orange-100 {
+  background-color: rgba(249, 115, 22, 0.15) !important;
+}
+
+/* Border button overrides in admin */
+.dark .border.rounded-xl {
+  border-color: #2d3348 !important;
+}

@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { useTheme } from "../../context/ThemeContext";
 
 export default function Users() {
+  const { isDark } = useTheme();
   const [selectedUser, setSelectedUser] =
     useState(null);
 
@@ -67,34 +69,42 @@ export default function Users() {
           onClick={() =>
             setSelectedUser(null)
           }
-          className="mb-6 border px-4 py-2 rounded-xl"
+          className={`mb-6 border px-4 py-2 rounded-xl ${
+            isDark
+              ? 'border-[#2d3348] text-slate-300 hover:bg-[#1a1d2b]'
+              : ''
+          }`}
         >
           ← Back
         </button>
 
-        <h1 className="text-3xl font-bold mb-6">
+        <h1 className={`text-3xl font-bold mb-6 ${isDark ? 'text-white' : ''}`}>
           {selectedUser.name}
         </h1>
 
         {/* Basic Info */}
-        <div className="bg-white rounded-2xl p-6 border shadow-sm mb-6">
-          <h2 className="font-semibold mb-3">
+        <div className={`rounded-2xl p-6 border shadow-sm mb-6 ${
+          isDark
+            ? 'bg-[#151823] border-[#1e293b]'
+            : 'bg-white'
+        }`}>
+          <h2 className={`font-semibold mb-3 ${isDark ? 'text-white' : ''}`}>
             Basic Info
           </h2>
 
-          <p>Email: {selectedUser.email}</p>
-          <p>Status: {selectedUser.status}</p>
-          <p>
+          <p className={isDark ? 'text-slate-300' : ''}>Email: {selectedUser.email}</p>
+          <p className={isDark ? 'text-slate-300' : ''}>Status: {selectedUser.status}</p>
+          <p className={isDark ? 'text-slate-300' : ''}>
             Last Login:{" "}
             {selectedUser.lastLogin}
           </p>
         </div>
 
         {/* Contest History */}
-        <Section title="Contest History">
+        <Section title="Contest History" isDark={isDark}>
           {selectedUser.contests.map(
             (c, i) => (
-              <p key={i}>
+              <p key={i} className={isDark ? 'text-slate-300' : ''}>
                 {c.name} — Rank #{c.rank} —
                 Score {c.score}
               </p>
@@ -103,10 +113,10 @@ export default function Users() {
         </Section>
 
         {/* OA Tests */}
-        <Section title="OA Test History">
+        <Section title="OA Test History" isDark={isDark}>
           {selectedUser.oaTests.map(
             (o, i) => (
-              <p key={i}>
+              <p key={i} className={isDark ? 'text-slate-300' : ''}>
                 {o.name} — {o.score}% —
                 {o.result} — Flags:{" "}
                 {o.flags}
@@ -116,10 +126,10 @@ export default function Users() {
         </Section>
 
         {/* Interviews */}
-        <Section title="AI Interviews">
+        <Section title="AI Interviews" isDark={isDark}>
           {selectedUser.interviews.map(
             (iv, i) => (
-              <p key={i}>
+              <p key={i} className={isDark ? 'text-slate-300' : ''}>
                 {iv.role} — {iv.score}% —
                 {iv.result}
               </p>
@@ -128,10 +138,10 @@ export default function Users() {
         </Section>
 
         {/* Login Activity */}
-        <Section title="Login Activity">
+        <Section title="Login Activity" isDark={isDark}>
           {selectedUser.logins.map(
             (log, i) => (
-              <p key={i}>
+              <p key={i} className={isDark ? 'text-slate-300' : ''}>
                 Login: {log.login} |
                 Logout: {log.logout}
               </p>
@@ -145,7 +155,11 @@ export default function Users() {
             Block User
           </button>
 
-          <button className="border px-4 py-2 rounded-xl">
+          <button className={`border px-4 py-2 rounded-xl ${
+            isDark
+              ? 'border-[#2d3348] text-slate-300 hover:bg-[#1a1d2b]'
+              : ''
+          }`}>
             Delete User
           </button>
         </div>
@@ -155,33 +169,41 @@ export default function Users() {
 
   return (
     <>
-      <h1 className="text-3xl font-bold mb-8">
+      <h1 className={`text-3xl font-bold mb-8 ${isDark ? 'text-white' : ''}`}>
         User Management
       </h1>
 
-      <div className="bg-white rounded-2xl border shadow-sm">
+      <div className={`rounded-2xl border shadow-sm ${
+        isDark
+          ? 'bg-[#151823] border-[#1e293b]'
+          : 'bg-white'
+      }`}>
         {users.map((user) => (
           <div
             key={user.id}
             onClick={() =>
               setSelectedUser(user)
             }
-            className="p-5 border-b cursor-pointer hover:bg-slate-50"
+            className={`p-5 border-b cursor-pointer ${
+              isDark
+                ? 'border-[#1e293b] hover:bg-[#1a1d2b]'
+                : 'hover:bg-slate-50'
+            }`}
           >
             <div className="flex justify-between">
               <div>
-                <h2 className="font-semibold">
+                <h2 className={`font-semibold ${isDark ? 'text-white' : ''}`}>
                   {user.name}
                 </h2>
 
-                <p className="text-slate-500">
+                <p className={isDark ? 'text-slate-400' : 'text-slate-500'}>
                   {user.email}
                 </p>
               </div>
 
               <div className="text-right">
-                <p>{user.status}</p>
-                <p className="text-sm text-slate-500">
+                <p className={isDark ? 'text-slate-300' : ''}>{user.status}</p>
+                <p className={`text-sm ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
                   {user.lastLogin}
                 </p>
               </div>
@@ -196,10 +218,15 @@ export default function Users() {
 function Section({
   title,
   children,
+  isDark,
 }) {
   return (
-    <div className="bg-white rounded-2xl p-6 border shadow-sm mb-6">
-      <h2 className="font-semibold mb-3">
+    <div className={`rounded-2xl p-6 border shadow-sm mb-6 ${
+      isDark
+        ? 'bg-[#151823] border-[#1e293b]'
+        : 'bg-white'
+    }`}>
+      <h2 className={`font-semibold mb-3 ${isDark ? 'text-white' : ''}`}>
         {title}
       </h2>
 

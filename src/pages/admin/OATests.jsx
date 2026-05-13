@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
+import { useTheme } from "../../context/ThemeContext";
 
 export default function OATests() {
+  const { isDark } = useTheme();
   const [tests, setTests] = useState([]);
 
   const [form, setForm] = useState({
@@ -44,14 +46,24 @@ export default function OATests() {
     alert("OA Test created!");
   };
 
+  const inputClass = `border rounded-xl px-4 py-3 ${
+    isDark
+      ? 'bg-[#1a1d2b] border-[#2d3348] text-slate-200 placeholder:text-slate-500'
+      : ''
+  }`;
+
   return (
     <>
-      <h1 className="text-3xl font-bold mb-8">
+      <h1 className={`text-3xl font-bold mb-8 ${isDark ? 'text-white' : ''}`}>
         OA Test Management
       </h1>
 
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-        <h2 className="text-xl font-semibold mb-6">
+      <div className={`rounded-2xl p-6 shadow-sm border ${
+        isDark
+          ? 'bg-[#151823] border-[#1e293b]'
+          : 'bg-white border-slate-200'
+      }`}>
+        <h2 className={`text-xl font-semibold mb-6 ${isDark ? 'text-white' : ''}`}>
           Create New OA Test
         </h2>
 
@@ -63,7 +75,7 @@ export default function OATests() {
             onChange={(e) =>
               handleChange("title", e.target.value)
             }
-            className="border rounded-xl px-4 py-3"
+            className={inputClass}
           />
 
           <input
@@ -76,7 +88,7 @@ export default function OATests() {
                 e.target.value
               )
             }
-            className="border rounded-xl px-4 py-3"
+            className={inputClass}
           />
 
           <select
@@ -84,7 +96,7 @@ export default function OATests() {
             onChange={(e) =>
               handleChange("type", e.target.value)
             }
-            className="border rounded-xl px-4 py-3"
+            className={inputClass}
           >
             <option>MCQ</option>
             <option>Coding</option>
@@ -100,12 +112,12 @@ export default function OATests() {
                 e.target.value
               )
             }
-            className="border rounded-xl px-4 py-3"
+            className={inputClass}
           />
         </div>
 
         {/* MCQ Builder */}
-        <h3 className="text-lg font-semibold mt-8 mb-4">
+        <h3 className={`text-lg font-semibold mt-8 mb-4 ${isDark ? 'text-white' : ''}`}>
           Add MCQ Question
         </h3>
 
@@ -119,7 +131,7 @@ export default function OATests() {
               e.target.value
             )
           }
-          className="w-full border rounded-xl px-4 py-3"
+          className={`w-full ${inputClass}`}
         />
 
         <div className="grid md:grid-cols-2 gap-4 mt-4">
@@ -129,7 +141,7 @@ export default function OATests() {
             onChange={(e) =>
               handleChange("optionA", e.target.value)
             }
-            className="border rounded-xl px-4 py-3"
+            className={inputClass}
           />
 
           <input
@@ -138,7 +150,7 @@ export default function OATests() {
             onChange={(e) =>
               handleChange("optionB", e.target.value)
             }
-            className="border rounded-xl px-4 py-3"
+            className={inputClass}
           />
 
           <input
@@ -147,7 +159,7 @@ export default function OATests() {
             onChange={(e) =>
               handleChange("optionC", e.target.value)
             }
-            className="border rounded-xl px-4 py-3"
+            className={inputClass}
           />
 
           <input
@@ -156,7 +168,7 @@ export default function OATests() {
             onChange={(e) =>
               handleChange("optionD", e.target.value)
             }
-            className="border rounded-xl px-4 py-3"
+            className={inputClass}
           />
         </div>
 
@@ -169,7 +181,7 @@ export default function OATests() {
                 e.target.value
               )
             }
-            className="border rounded-xl px-4 py-3"
+            className={inputClass}
           >
             <option>A</option>
             <option>B</option>
@@ -184,10 +196,10 @@ export default function OATests() {
             onChange={(e) =>
               handleChange("marks", e.target.value)
             }
-            className="border rounded-xl px-4 py-3"
+            className={inputClass}
           />
 
-          <label className="flex items-center gap-2">
+          <label className={`flex items-center gap-2 ${isDark ? 'text-slate-300' : ''}`}>
             <input
               type="checkbox"
               checked={form.negativeMarking}
@@ -203,7 +215,7 @@ export default function OATests() {
         </div>
 
         {/* Proctoring */}
-        <h3 className="text-lg font-semibold mt-8 mb-4">
+        <h3 className={`text-lg font-semibold mt-8 mb-4 ${isDark ? 'text-white' : ''}`}>
           Proctoring Settings
         </h3>
 
@@ -218,7 +230,7 @@ export default function OATests() {
           ].map((item) => (
             <label
               key={item}
-              className="flex items-center gap-2"
+              className={`flex items-center gap-2 ${isDark ? 'text-slate-300' : ''}`}
             >
               <input
                 type="checkbox"
@@ -236,7 +248,7 @@ export default function OATests() {
         </div>
 
         {/* Result */}
-        <h3 className="text-lg font-semibold mt-8 mb-4">
+        <h3 className={`text-lg font-semibold mt-8 mb-4 ${isDark ? 'text-white' : ''}`}>
           Result Settings
         </h3>
 
@@ -246,7 +258,7 @@ export default function OATests() {
             onChange={(e) =>
               handleChange("result", e.target.value)
             }
-            className="border rounded-xl px-4 py-3"
+            className={inputClass}
           >
             <option>Immediate</option>
             <option>Later</option>
@@ -262,13 +274,13 @@ export default function OATests() {
                 e.target.value
               )
             }
-            className="border rounded-xl px-4 py-3"
+            className={inputClass}
           />
         </div>
 
         <button
           onClick={handleCreate}
-          className="mt-8 bg-orange-500 text-white px-6 py-3 rounded-xl flex items-center gap-2"
+          className="mt-8 bg-orange-500 text-white px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-orange-600 transition"
         >
           <Plus size={18} />
           Create OA Test
