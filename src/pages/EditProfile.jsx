@@ -1,40 +1,93 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '../components/MainLayout';
 import DashboardCard from '../components/DashboardCard';
 import GradientButton from '../components/GradientButton';
-import { MOCK_PROFILE } from '../data/profileData';
 import {
   ChevronLeft, Save, X, User, Briefcase, GraduationCap,
-  Globe, GitBranch, Link2, Code2, Upload, Plus, Trash2
+  Globe, GitBranch, Link2, Code2, Upload, Plus, Trash2, Loader2
 } from 'lucide-react';
+
+const API_BASE = 'http://localhost:5000';
 
 const EditProfile = () => {
   const navigate = useNavigate();
-  const p = MOCK_PROFILE;
 
   const [form, setForm] = useState({
-    name: p.name,
-    headline: p.headline,
-    bio: p.bio,
-    location: p.location,
-    phone: p.phone,
-    college: p.college,
-    degree: p.degree,
-    gradYear: p.gradYear,
-    github: p.social.github,
-    linkedin: p.social.linkedin,
-    portfolio: p.social.portfolio,
-    leetcode: p.social.leetcode,
+    fullName: '',
+    bio: '',
+    college: '',
+    branch: '',
+    graduationYear: '',
+    github: '',
+    linkedin: '',
+    leetcode: '',
+    codeforces: '',
+    resumeUrl: '',
+    profileImage: '',
   });
 
-  const [skills, setSkills] = useState([...p.skills.languages, ...p.skills.frameworks, ...p.skills.databases, ...p.skills.tools]);
+  const [skills, setSkills] = useState([]);
   const [newSkill, setNewSkill] = useState('');
-  const [projects, setProjects] = useState(p.projects.map(proj => ({ ...proj })));
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
+
+  // Fetch existing profile on mount
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+
+    const fetchProfile = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/profile`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.status === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          navigate('/login');
+          return;
+        }
+
+        const data = await res.json();
+        if (data.success) {
+          const u = data.user;
+          setForm({
+            fullName: u.fullName || '',
+            bio: u.bio || '',
+            college: u.college || '',
+            branch: u.branch || '',
+            graduationYear: u.graduationYear || '',
+            github: u.github || '',
+            linkedin: u.linkedin || '',
+            leetcode: u.leetcode || '',
+            codeforces: u.codeforces || '',
+            resumeUrl: u.resumeUrl || '',
+            profileImage: u.profileImage || '',
+          });
+          setSkills(u.skills || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch profile:', err);
+        setError('Failed to load profile data.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [navigate]);
 
   const handleChange = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));
+    if (error) setError('');
+    if (saved) setSaved(false);
   };
 
   const addSkill = () => {
@@ -48,19 +101,80 @@ const EditProfile = () => {
     setSkills(prev => prev.filter(s => s !== skill));
   };
 
-  const updateProject = (idx, field, value) => {
-    setProjects(prev => prev.map((proj, i) => i === idx ? { ...proj, [field]: value } : proj));
-  };
+  const handleSave = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
 
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => {
-      navigate('/profile');
-    }, 1500);
+    setSaving(true);
+    setError('');
+
+    try {
+      const res = await fetch(`${API_BASE}/api/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          fullName: form.fullName,
+          bio: form.bio,
+          college: form.college,
+          branch: form.branch,
+          graduationYear: form.graduationYear ? Number(form.graduationYear) : undefined,
+          skills,
+          github: form.github,
+          linkedin: form.linkedin,
+          leetcode: form.leetcode,
+          codeforces: form.codeforces,
+          resumeUrl: form.resumeUrl,
+          profileImage: form.profileImage,
+        }),
+      });
+
+      if (res.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        navigate('/login');
+        return;
+      }
+
+      const data = await res.json();
+
+      if (data.success) {
+        // Update localStorage user
+        localStorage.setItem('user', JSON.stringify(data.user));
+        setSaved(true);
+        setTimeout(() => {
+          navigate('/profile');
+        }, 1200);
+      } else {
+        setError(data.message || 'Failed to update profile.');
+      }
+    } catch (err) {
+      setError('Server not reachable. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const inputClass = "w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:border-orange-500/50 transition-all font-medium text-slate-700 text-sm";
   const labelClass = "text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block";
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 size={40} className="animate-spin text-orange-500" />
+            <p className="text-slate-500 font-bold text-sm">Loading profile...</p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -78,34 +192,38 @@ const EditProfile = () => {
             <button onClick={() => navigate('/profile')} className="px-6 py-3 rounded-xl border border-slate-200 text-slate-500 text-xs font-black uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center gap-2">
               <X size={16} /> Cancel
             </button>
-            <GradientButton className="!py-3 !px-8" onClick={handleSave}>
-              <Save size={16} /> {saved ? 'Saved!' : 'Save Changes'}
+            <GradientButton className="!py-3 !px-8" onClick={handleSave} disabled={saving}>
+              <Save size={16} /> {saved ? 'Saved!' : saving ? 'Saving...' : 'Save Changes'}
             </GradientButton>
           </div>
         </div>
+
+        {error && (
+          <div className="p-4 rounded-2xl bg-red-50 border border-red-100 text-red-600 text-sm font-bold">
+            {error}
+          </div>
+        )}
+
+        {saved && (
+          <div className="p-4 rounded-2xl bg-green-50 border border-green-100 text-green-600 text-sm font-bold">
+            Profile updated successfully! Redirecting...
+          </div>
+        )}
 
         {/* Basic Info */}
         <DashboardCard title="Basic Information" icon={User}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className={labelClass}>Full Name</label>
-              <input className={inputClass} value={form.name} onChange={(e) => handleChange('name', e.target.value)} />
+              <input className={inputClass} value={form.fullName} onChange={(e) => handleChange('fullName', e.target.value)} />
             </div>
             <div>
-              <label className={labelClass}>Headline / Role</label>
-              <input className={inputClass} value={form.headline} onChange={(e) => handleChange('headline', e.target.value)} />
+              <label className={labelClass}>Profile Image URL</label>
+              <input className={inputClass} value={form.profileImage} onChange={(e) => handleChange('profileImage', e.target.value)} placeholder="https://..." />
             </div>
             <div className="md:col-span-2">
               <label className={labelClass}>Bio</label>
               <textarea className={`${inputClass} min-h-[120px] resize-none`} value={form.bio} onChange={(e) => handleChange('bio', e.target.value)} />
-            </div>
-            <div>
-              <label className={labelClass}>Location</label>
-              <input className={inputClass} value={form.location} onChange={(e) => handleChange('location', e.target.value)} />
-            </div>
-            <div>
-              <label className={labelClass}>Phone</label>
-              <input className={inputClass} value={form.phone} onChange={(e) => handleChange('phone', e.target.value)} />
             </div>
           </div>
         </DashboardCard>
@@ -118,12 +236,12 @@ const EditProfile = () => {
               <input className={inputClass} value={form.college} onChange={(e) => handleChange('college', e.target.value)} />
             </div>
             <div>
-              <label className={labelClass}>Degree</label>
-              <input className={inputClass} value={form.degree} onChange={(e) => handleChange('degree', e.target.value)} />
+              <label className={labelClass}>Branch / Degree</label>
+              <input className={inputClass} value={form.branch} onChange={(e) => handleChange('branch', e.target.value)} />
             </div>
             <div>
               <label className={labelClass}>Graduation Year</label>
-              <input className={inputClass} value={form.gradYear} onChange={(e) => handleChange('gradYear', e.target.value)} />
+              <input className={inputClass} type="number" value={form.graduationYear} onChange={(e) => handleChange('graduationYear', e.target.value)} />
             </div>
           </div>
         </DashboardCard>
@@ -154,50 +272,14 @@ const EditProfile = () => {
           </div>
         </DashboardCard>
 
-        {/* Projects */}
-        <DashboardCard title="Projects" icon={Briefcase}>
-          <div className="space-y-6">
-            {projects.map((proj, idx) => (
-              <div key={idx} className="p-6 rounded-[2rem] bg-slate-50 border border-slate-100 space-y-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-black uppercase tracking-widest text-slate-400">Project {idx + 1}</p>
-                  <button onClick={() => setProjects(prev => prev.filter((_, i) => i !== idx))} className="text-slate-300 hover:text-red-500 transition-colors">
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className={labelClass}>Title</label>
-                    <input className={inputClass} value={proj.title} onChange={(e) => updateProject(idx, 'title', e.target.value)} />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Tech Stack (comma-separated)</label>
-                    <input className={inputClass} value={proj.tech.join(', ')} onChange={(e) => updateProject(idx, 'tech', e.target.value.split(',').map(s => s.trim()))} />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className={labelClass}>Description</label>
-                    <textarea className={`${inputClass} min-h-[80px] resize-none`} value={proj.description} onChange={(e) => updateProject(idx, 'description', e.target.value)} />
-                  </div>
-                </div>
-              </div>
-            ))}
-            <button
-              onClick={() => setProjects(prev => [...prev, { title: '', description: '', tech: [], github: '#', live: '#' }])}
-              className="w-full py-4 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 text-xs font-black uppercase tracking-widest hover:border-orange-500/50 hover:text-orange-500 transition-all flex items-center justify-center gap-2"
-            >
-              <Plus size={16} /> Add Project
-            </button>
-          </div>
-        </DashboardCard>
-
         {/* Social Links */}
         <DashboardCard title="Social Links" icon={Globe}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {[
               { icon: GitBranch, label: 'GitHub URL', field: 'github' },
               { icon: Link2, label: 'LinkedIn URL', field: 'linkedin' },
-              { icon: Globe, label: 'Portfolio URL', field: 'portfolio' },
               { icon: Code2, label: 'LeetCode URL', field: 'leetcode' },
+              { icon: Code2, label: 'Codeforces URL', field: 'codeforces' },
             ].map((link, i) => (
               <div key={i}>
                 <label className={labelClass}>{link.label}</label>
@@ -210,15 +292,12 @@ const EditProfile = () => {
           </div>
         </DashboardCard>
 
-        {/* Resume Upload */}
+        {/* Resume URL */}
         <DashboardCard title="Resume" icon={Upload}>
-          <div className="relative group">
-            <input type="file" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" accept=".pdf,.docx" />
-            <div className="border-2 border-dashed border-slate-200 rounded-[2rem] p-12 flex flex-col items-center justify-center text-center group-hover:border-orange-500/50 group-hover:bg-orange-50/30 transition-all">
-              <Upload size={40} className="text-slate-300 mb-4 group-hover:text-orange-500 transition-colors" />
-              <p className="font-bold text-[#0B1B3B] mb-1">Replace Resume</p>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Current: {p.resume.name}</p>
-            </div>
+          <div>
+            <label className={labelClass}>Resume URL</label>
+            <input className={inputClass} value={form.resumeUrl} onChange={(e) => handleChange('resumeUrl', e.target.value)} placeholder="https://drive.google.com/..." />
+            <p className="text-xs text-slate-400 mt-2 ml-1">Paste a link to your resume (Google Drive, Dropbox, etc.)</p>
           </div>
         </DashboardCard>
 
@@ -227,8 +306,8 @@ const EditProfile = () => {
           <button onClick={() => navigate('/profile')} className="px-8 py-4 rounded-xl border border-slate-200 text-slate-500 text-xs font-black uppercase tracking-widest hover:bg-slate-50 transition-all">
             Cancel
           </button>
-          <GradientButton className="!py-4 !px-12" onClick={handleSave}>
-            <Save size={18} /> {saved ? 'Changes Saved!' : 'Save All Changes'}
+          <GradientButton className="!py-4 !px-12" onClick={handleSave} disabled={saving}>
+            <Save size={18} /> {saved ? 'Changes Saved!' : saving ? 'Saving...' : 'Save All Changes'}
           </GradientButton>
         </div>
       </div>

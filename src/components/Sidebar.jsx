@@ -84,7 +84,7 @@ const Sidebar = () => {
             <img src="https://ui-avatars.com/api/?name=Nandani&background=0B1B3B&color=fff" alt="User" />
           </div>
           <div className="flex-1">
-            <p className="text-xs font-black text-[#0B1B3B]">Nandani 👋</p>
+            <p className="text-xs font-black text-[#0B1B3B]">Nandani </p>
             <p className="text-[10px] text-orange-600 font-bold uppercase tracking-tighter">Level 24 Candidate</p>
           </div>
         </div>
