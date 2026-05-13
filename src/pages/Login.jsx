@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Lock, LogIn } from 'lucide-react';
 import AuthLayout from '../components/AuthLayout';
 import AuthCard from '../components/AuthCard';
 import CustomInput from '../components/CustomInput';
 import GradientButton from '../components/GradientButton';
+
+const API_BASE = 'http://localhost:5000';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -14,6 +16,22 @@ const Login = () => {
     password: '',
     rememberMe: false,
   });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // Redirect if already logged in
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const user = localStorage.getItem('user');
+    if (token && user) {
+      const parsed = JSON.parse(user);
+      if (parsed.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/dashboard');
+      }
+    }
+  }, [navigate]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -21,16 +39,61 @@ const Login = () => {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+    if (error) setError('');
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Login Data:', { ...formData, role });
+    setError('');
 
-    if (role === 'Admin') {
-      navigate('/admin/dashboard');
-    } else {
-      navigate('/dashboard');
+    // Validate required fields
+    if (!formData.email || !formData.password) {
+      setError('Please fill in all fields');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.message || 'Login failed');
+        setLoading(false);
+        return;
+      }
+
+      // Security check: role mismatch
+      const selectedRole = role.toLowerCase();
+      if (data.user.role !== selectedRole) {
+        setError('Please login using the correct role.');
+        setLoading(false);
+        return;
+      }
+
+      // Save to localStorage
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+
+      // Redirect based on role
+      if (data.user.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/dashboard');
+      }
+    } catch (err) {
+      setError('Server not reachable. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -47,7 +110,7 @@ const Login = () => {
               <button
                 key={r}
                 type="button"
-                onClick={() => setRole(r)}
+                onClick={() => { setRole(r); setError(''); }}
                 className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all duration-300 ${role === r
                   ? 'bg-[#0B1B3B] text-white shadow-md'
                   : 'text-slate-400 hover:text-slate-600'
@@ -96,8 +159,14 @@ const Login = () => {
             </Link>
           </div>
 
-          <GradientButton type="submit" className="mt-4">
-            Sign In <LogIn size={18} strokeWidth={2.5} />
+          {error && (
+            <p className="text-red-500 text-[10px] font-bold tracking-tight mt-1 ml-1 animate-pulse">
+              {error}
+            </p>
+          )}
+
+          <GradientButton type="submit" className="mt-4" disabled={loading}>
+            {loading ? 'Signing In...' : (<>Sign In <LogIn size={18} strokeWidth={2.5} /></>)}
           </GradientButton>
 
           <p className="text-center text-slate-500 text-[14px] mt-6 font-semibold">

@@ -35,8 +35,8 @@ const Sidebar = () => {
             to={item.path}
             className={({ isActive }) => `
               flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all duration-300 group
-              ${isActive 
-                ? 'bg-[#0B1B3B] text-white shadow-lg shadow-navy-900/20' 
+              ${isActive
+                ? 'bg-[#0B1B3B] text-white shadow-lg shadow-navy-900/20'
                 : 'text-slate-500 hover:bg-orange-50 hover:text-orange-600'}
             `}
           >
@@ -50,7 +50,11 @@ const Sidebar = () => {
       {/* Bottom Actions */}
       <div className="p-4 mt-auto space-y-2">
         <button
-          onClick={() => window.location.href = '/login'}
+          onClick={() => {
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            window.location.href = '/login'
+          }}
           className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-orange-600 hover:bg-orange-50 transition-all font-bold text-sm"
         >
           <span>Logout</span>
@@ -72,7 +76,7 @@ const Sidebar = () => {
 
       {/* Profile Summary */}
       <div className="p-6 border-t border-orange-50">
-        <div 
+        <div
           onClick={() => window.location.href = '/profile'}
           className="bg-orange-50 rounded-2xl p-4 flex items-center gap-3 cursor-pointer hover:bg-orange-100/50 transition-all"
         >
@@ -85,7 +89,7 @@ const Sidebar = () => {
           </div>
         </div>
       </div>
-    </aside>
+    </aside >
   );
 };
 

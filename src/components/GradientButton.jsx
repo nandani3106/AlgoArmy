@@ -6,7 +6,8 @@ const GradientButton = ({
   onClick, 
   type = 'button', 
   className = '', 
-  variant = 'primary' 
+  variant = 'primary',
+  disabled = false,
 }) => {
   const baseStyles = "w-full py-4 px-6 rounded-xl font-bold transition-all duration-300 flex items-center justify-center gap-3 shadow-md";
   
@@ -19,7 +20,8 @@ const GradientButton = ({
     <button
       type={type}
       onClick={onClick}
-      className={`${baseStyles} ${variants[variant]} ${className}`}
+      disabled={disabled}
+      className={`${baseStyles} ${variants[variant]} ${className} ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
     >
       {children}
     </button>
