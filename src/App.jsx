@@ -93,7 +93,7 @@ function App() {
         <Route path="/oa/:id/workspace" element={<OAWorkspace />} />
         <Route path="/oa/:id/submitted" element={<OASubmitted />} />
         <Route path="/results/oa/:id" element={<OAReport />} />
-
+        <Route path="/oa/:id/report" element={<OAReport />} />
         {/* AI Interview Module */}
         <Route path="/interviews" element={<InterviewList />} />
         <Route

@@ -3,9 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import MainLayout from '../components/MainLayout';
 import ScoreCard from '../components/ScoreCard';
 import DashboardCard from '../components/DashboardCard';
-import { 
-  Trophy, Award, Target, Clock, Zap, ChevronLeft, 
-  Download, PieChart, TrendingUp, Building2, Video, 
+import {
+  Trophy, Award, Target, Clock, Zap, ChevronLeft,
+  Download, PieChart, TrendingUp, Building2, Video,
   MessageSquare, CheckCircle, AlertCircle, BarChart3, Share2, Loader2
 } from 'lucide-react';
 import jsPDF from 'jspdf';
@@ -33,7 +33,7 @@ const ResultDetails = () => {
 
         const headers = { 'Authorization': `Bearer ${token}` };
         let endpoint = '';
-        
+
         if (type === 'contest') endpoint = `${API_BASE}/api/results/contests`;
         else if (type === 'oa') endpoint = `${API_BASE}/api/results/oa`;
         else if (type === 'interview') endpoint = `${API_BASE}/api/results/interviews`;
@@ -43,7 +43,14 @@ const ResultDetails = () => {
 
         if (resultData.success) {
           // Find matching result by id (which might be _id in backend)
-          const item = resultData.data.find(r => (r._id || r.id) === id);
+          const item = resultData.data.find((r) => {
+            const resultId =
+              type === 'oa'
+                ? (r.oaTest?._id || r.oaTest || r._id || r.id)
+                : (r._id || r.id);
+
+            return resultId === id;
+          });
           if (item) {
             setData(item);
           } else {
@@ -211,7 +218,7 @@ const ResultDetails = () => {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
-            <button 
+            <button
               onClick={() => navigate('/results')}
               className="flex items-center gap-2 text-slate-500 hover:text-[#0B1B3B] font-bold transition-colors group"
             >
@@ -220,11 +227,10 @@ const ResultDetails = () => {
             </button>
             <div className="flex items-center gap-4">
               <h1 className="text-3xl md:text-4xl font-black text-[#0B1B3B] tracking-tight">{getReportTitle()}</h1>
-              <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${
-                type === 'contest' ? 'bg-amber-50 text-amber-600 border-amber-100' :
-                type === 'oa' ? 'bg-blue-50 text-blue-600 border-blue-100' :
-                'bg-orange-50 text-orange-600 border-orange-100'
-              }`}>
+              <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${type === 'contest' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                  type === 'oa' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                    'bg-orange-50 text-orange-600 border-orange-100'
+                }`}>
                 {type}
               </span>
             </div>
@@ -233,7 +239,7 @@ const ResultDetails = () => {
             <button className="p-4 rounded-2xl bg-white border border-slate-200 text-slate-500 hover:text-[#0B1B3B] transition-all shadow-sm">
               <Share2 size={20} />
             </button>
-            <button 
+            <button
               onClick={handleDownload}
               disabled={downloading}
               className="flex items-center justify-center gap-3 px-8 py-4 rounded-2xl bg-[#0B1B3B] text-white font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-navy-900/20"
@@ -253,7 +259,7 @@ const ResultDetails = () => {
 
         {/* Footer Actions */}
         <div className="flex flex-wrap gap-4 pt-8 border-t border-slate-100">
-          <button 
+          <button
             onClick={() => navigate('/results')}
             className="px-8 py-4 rounded-2xl bg-slate-50 border border-slate-100 text-slate-500 font-black text-xs uppercase tracking-widest hover:bg-slate-100 transition-all"
           >

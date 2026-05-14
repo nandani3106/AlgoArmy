@@ -54,48 +54,88 @@ export const getOAQuestions = async (req, res) => {
  */
 export const submitOATest = async (req, res) => {
   try {
-    const { answers } = req.body; // Array of { questionId, answer }
-    const testId = req.params.id;
+    const { answers: userAnswers } = req.body;
+    const oaTestId = req.params.id;
     const userId = req.user._id;
 
-    // Check if submission already exists
-    let submission = await OASubmission.findOne({ oaTest: testId, user: userId });
-    if (submission && submission.status === "Submitted") {
-      return res.status(400).json({ success: false, message: "Test already submitted" });
-    }
-
-    const questions = await OAQuestion.find({ oaTest: testId });
-    let totalScore = 0;
+    const questions = await OAQuestion.find({ oaTest: oaTestId });
+    
+    let score = 0;
+    let totalPossibleScore = 0;
+    let attemptedQuestions = 0;
+    let correctAnswers = 0;
+    let incorrectAnswers = 0;
     const processedAnswers = [];
 
     for (const q of questions) {
-      const userAnswer = answers.find((a) => a.questionId === q._id.toString());
-      const isCorrect = userAnswer ? userAnswer.answer === q.correctAnswer : false;
-      const pointsEarned = isCorrect ? q.points : 0;
+      totalPossibleScore += (q.points || 0);
+      
+      const userAnswerObj = userAnswers.find((a) => a.questionId === q._id.toString());
+      const userAnswerText = userAnswerObj ? String(userAnswerObj.answer).trim() : "";
+      const isAttempted = userAnswerText !== "";
+      
+      if (isAttempted) attemptedQuestions++;
 
-      if (isCorrect) totalScore += pointsEarned;
+      const correctAnswerText = String(q.correctAnswer).trim();
+      let isCorrect = false;
+      let pointsEarned = 0;
+
+      if (q.type === "mcq") {
+        isCorrect = isAttempted && userAnswerText.toLowerCase() === correctAnswerText.toLowerCase();
+        pointsEarned = isCorrect ? (q.points || 0) : 0;
+        
+        if (isAttempted) {
+          if (isCorrect) correctAnswers++;
+          else incorrectAnswers++;
+        }
+      } else {
+        // Coding questions
+        isCorrect = false; 
+        pointsEarned = 0;
+      }
+
+      score += pointsEarned;
 
       processedAnswers.push({
         question: q._id,
-        answer: userAnswer ? userAnswer.answer : "",
+        answer: userAnswerText,
         isCorrect,
         pointsEarned,
       });
     }
 
-    submission = await OASubmission.create({
-      oaTest: testId,
-      user: userId,
-      answers: processedAnswers,
-      score: totalScore,
-      status: "Submitted",
-    });
+    const totalQuestions = questions.length;
+    const unattemptedQuestions = totalQuestions - attemptedQuestions;
+    const percentage = totalPossibleScore > 0 ? (score / totalPossibleScore) * 100 : 0;
 
-    res.status(201).json({
+    const submission = await OASubmission.findOneAndUpdate(
+      { oaTest: oaTestId, user: userId },
+      {
+        oaTest: oaTestId,
+        user: userId,
+        answers: processedAnswers,
+        score,
+        percentage: Math.round(percentage * 100) / 100,
+        totalQuestions,
+        attemptedQuestions,
+        unattemptedQuestions,
+        correctAnswers,
+        incorrectAnswers,
+        totalPossibleScore,
+        status: "Submitted",
+        submittedAt: new Date(),
+      },
+      {
+        upsert: true,
+        new: true,
+        returnDocument: "after"
+      }
+    );
+
+    res.status(200).json({
       success: true,
-      message: "Test submitted successfully",
-      score: totalScore,
-      data: submission,
+      message: "Assessment submitted successfully",
+      submission
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -112,13 +152,19 @@ export const getOAReport = async (req, res) => {
     const submission = await OASubmission.findOne({
       oaTest: req.params.id,
       user: req.user._id,
-    }).populate("oaTest");
+    }).populate("oaTest", "title company durationMinutes difficulty");
 
     if (!submission) {
-      return res.status(404).json({ success: false, message: "No submission found for this test" });
+      return res.status(404).json({
+        success: false,
+        message: "No submission found",
+      });
     }
 
-    res.status(200).json({ success: true, data: submission });
+    res.status(200).json({
+      success: true,
+      submission
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

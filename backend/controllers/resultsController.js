@@ -25,7 +25,7 @@ export const getCandidateDashboardResults = async (req, res) => {
     const contestsParticipated = new Set(contestSubmissions.map(s => s.contest?._id?.toString())).size;
     const totalContestScore = contestSubmissions.reduce((acc, curr) => acc + (curr.score || 0), 0);
     // Mocking "contests won" as contests where user scored > 80% (just for logic)
-    const contestsWon = 0; 
+    const contestsWon = 0;
 
     // Aggregate OA Data
     const oaTestsTaken = oaSubmissions.length;
@@ -70,20 +70,30 @@ export const getCandidateDashboardResults = async (req, res) => {
  */
 export const getAllContestResults = async (req, res) => {
   try {
-    const submissions = await ContestSubmission.find({ user: req.user._id })
+    const submissions = await ContestSubmission.find({
+      user: req.user._id,
+    })
       .populate("contest", "title")
       .sort({ submittedAt: -1 });
 
-    const formatted = submissions.map(s => ({
+    const formatted = submissions.map((s) => ({
+      _id: s._id,
+      id: s._id,
       contestTitle: s.contest?.title || "Unknown Contest",
-      score: s.score,
-      status: s.status,
+      score: s.score || 0,
+      status: s.status || "Submitted",
       submittedAt: s.submittedAt,
     }));
 
-    res.status(200).json({ success: true, data: formatted });
+    res.status(200).json({
+      success: true,
+      data: formatted,
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
@@ -99,6 +109,7 @@ export const getAllOAResults = async (req, res) => {
       .sort({ submittedAt: -1 });
 
     const formatted = submissions.map(s => ({
+      oaTest: s.oaTest,
       testTitle: s.oaTest?.title || "Unknown Test",
       company: s.oaTest?.company || "N/A",
       score: s.score,

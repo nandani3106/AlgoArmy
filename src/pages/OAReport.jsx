@@ -1,14 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  BarChart3, Target, Zap, Clock, ChevronLeft, 
-  Download, PieChart, TrendingUp, Award, Building2, CheckCircle, Loader2, AlertCircle
+import {
+  BarChart3, Target, Zap, Clock, ChevronLeft,
+  Download, PieChart, Award, Building2, CheckCircle, AlertCircle, Loader2
 } from 'lucide-react';
 import MainLayout from '../components/MainLayout';
 import ScoreCard from '../components/ScoreCard';
 import DashboardCard from '../components/DashboardCard';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 const API_BASE = 'http://localhost:5000';
 
@@ -18,11 +16,13 @@ const OAReport = () => {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [downloading, setDownloading] = useState(false);
-  const [downloaded, setDownloaded] = useState(false);
-  const reportRef = useRef(null);
-  
+
   useEffect(() => {
+    if (!id || id === 'undefined') {
+      setError('Invalid Assessment ID');
+      setLoading(false);
+      return;
+    }
     const fetchReport = async () => {
       try {
         const token = localStorage.getItem('token');
@@ -33,91 +33,57 @@ const OAReport = () => {
 
         const response = await fetch(`${API_BASE}/api/oa/${id}/report`, {
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           }
         });
 
         const data = await response.json();
-        if (data.success) {
-          setReport(data.data);
+
+        if (response.ok && data.success) {
+          setReport(data.submission);
         } else {
-          if (response.status === 401 || response.status === 403) {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            navigate('/login');
-          } else {
-            setError(data.message || 'Failed to load report');
-          }
+          setError(data.message || `Error: ${response.status} ${response.statusText}`);
         }
       } catch (err) {
-        setError('Network error. Please try again later.');
+        console.error("Fetch error:", err);
+        setError("Network connection failed. Please ensure the server is running.");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchReport();
-  }, [id, navigate]);
-
-  const handleDownload = async () => {
-    if (downloading) return;
-    setDownloading(true);
-    try {
-      window.scrollTo(0, 0);
-      const element = reportRef.current;
-      if (!element) throw new Error("Report element not found");
-
-      const canvas = await html2canvas(element, {
-        scale: 1.5,
-        useCORS: true,
-        backgroundColor: '#f8fafc',
-      });
-
-      const imgData = canvas.toDataURL('image/jpeg', 0.8);
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const imgProps = pdf.getImageProperties(imgData);
-      const ratio = imgProps.width / imgProps.height;
-      const height = pdfWidth / ratio;
-      
-      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, height);
-      pdf.save(`OA_Report_${report?.oaTest?.company || 'Assessment'}.pdf`);
-      
-      setDownloaded(true);
-      setTimeout(() => setDownloaded(false), 3000);
-    } catch (err) {
-      console.error('PDF Error:', err);
-      alert('Report generation failed.');
-    } finally {
-      setDownloading(false);
+    if (id) {
+      fetchReport();
+    } else {
+      setError("Invalid Assessment ID");
+      setLoading(false);
     }
-  };
+  }, [id, navigate]);
 
   if (loading) {
     return (
       <MainLayout>
-        <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4">
-          <Loader2 className="text-orange-500 animate-spin" size={48} />
-          <p className="text-slate-500 font-bold animate-pulse">Analyzing Performance Data...</p>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+          <Loader2 className="animate-spin text-orange-500" size={48} />
+          <p className="text-slate-500 font-bold text-lg animate-pulse">Loading report...</p>
         </div>
       </MainLayout>
     );
   }
 
-  if (error || !report) {
+  if (error) {
     return (
       <MainLayout>
-        <div className="min-h-[60vh] flex flex-col items-center justify-center gap-6 text-center px-4">
-          <div className="w-20 h-20 bg-red-50 rounded-3xl flex items-center justify-center border border-red-100">
-            <AlertCircle size={40} className="text-red-500" />
+        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 text-center px-4">
+          <div className="bg-red-50 p-6 rounded-3xl border border-red-100">
+            <AlertCircle size={48} className="text-red-500 mb-4 mx-auto" />
+            <h3 className="text-xl font-black text-red-700 mb-2">Report Error</h3>
+            <p className="text-red-600 font-medium max-w-md">{error}</p>
           </div>
-          <div className="space-y-2">
-            <h3 className="text-2xl font-black text-[#0B1B3B]">Report not found</h3>
-            <p className="text-slate-500 font-medium max-w-md">{error || 'You haven\'t submitted this assessment yet.'}</p>
-          </div>
-          <button 
+          <button
             onClick={() => navigate('/oa')}
-            className="px-8 py-3 bg-[#0B1B3B] text-white rounded-xl font-bold hover:bg-navy-800 transition-all shadow-lg shadow-navy-900/10"
+            className="px-8 py-3 bg-[#0B1B3B] text-white rounded-xl font-bold hover:bg-navy-800 transition-all"
           >
             Back to Assessments
           </button>
@@ -126,180 +92,197 @@ const OAReport = () => {
     );
   }
 
-  // Calculate some derived metrics
-  const totalQuestions = report.oaTest?.totalQuestions || report.answers.length;
-  const correctAnswers = report.answers.filter(a => a.isCorrect).length;
-  const accuracy = Math.round((correctAnswers / (totalQuestions || 1)) * 100);
+  if (!report) {
+    return (
+      <MainLayout>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
+          <div className="bg-orange-50 p-6 rounded-3xl border border-orange-100 mb-6">
+            <Award size={48} className="text-orange-400 mb-4 mx-auto" />
+            <h3 className="text-xl font-black text-[#0B1B3B] mb-2">No report available.</h3>
+            <p className="text-slate-500 font-medium max-w-sm">
+              We couldn't find a submission for this assessment. Please complete the test first.
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/oa')}
+            className="px-8 py-3 bg-[#0B1B3B] text-white rounded-xl font-bold transition-all"
+          >
+            Go to Assessments
+          </button>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  // Defensive calculations
+  const percentage = report?.percentage ?? 0;
+  const score = report?.score ?? 0;
+  const totalPossible = report?.totalPossibleScore ?? 0;
+  const attempted = report?.attemptedQuestions ?? 0;
+  const total = report?.totalQuestions ?? 0;
+  const correct = report?.correctAnswers ?? 0;
+  const incorrect = report?.incorrectAnswers ?? 0;
 
   return (
     <MainLayout>
-      <div className="space-y-10 pb-12" ref={reportRef}>
-        {/* Header */}
+      <div className="space-y-10 pb-12">
+        {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
-            <button 
+            <button
               onClick={() => navigate('/dashboard')}
               className="flex items-center gap-2 text-slate-500 hover:text-[#0B1B3B] font-bold transition-colors group"
             >
               <ChevronLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
               Back to Dashboard
             </button>
-            <h1 className="text-3xl md:text-4xl font-black text-[#0B1B3B] tracking-tight flex items-center gap-4">
-              Performance Analysis
-              <span className="px-4 py-1 rounded-full bg-orange-50 text-orange-600 text-[10px] font-black uppercase tracking-widest border border-orange-100">
-                Official Report
-              </span>
+            <h1 className="text-3xl md:text-4xl font-black text-[#0B1B3B] tracking-tight">
+              {report?.oaTest?.title || 'Performance Report'}
             </h1>
+            <div className="flex items-center gap-4 text-slate-500 font-bold">
+              <span className="flex items-center gap-1.5"><Building2 size={16} /> {report?.oaTest?.company || 'AlgoArmy'}</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+              <span className="uppercase tracking-widest text-[10px]">{report?.oaTest?.difficulty || 'Medium'}</span>
+            </div>
           </div>
-          <button 
-            onClick={handleDownload}
-            disabled={downloading}
-            className={`flex items-center justify-center gap-3 px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl shadow-orange-900/5 border ${
-              downloaded 
-                ? 'bg-green-500 border-green-600 text-white' 
-                : 'bg-white border-slate-200 text-[#0B1B3B] hover:bg-slate-50'
-            }`}
-          >
-            {downloading ? (
-              <Loader2 className="animate-spin" size={18} />
-            ) : downloaded ? (
-              <CheckCircle size={18} />
-            ) : (
-              <Download size={18} />
-            )}
-            {downloading ? 'Generating PDF...' : downloaded ? 'Report Saved!' : 'Download Report'}
+          <button className="flex items-center justify-center gap-3 px-8 py-4 rounded-2xl bg-white border border-slate-200 text-[#0B1B3B] font-black text-xs uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm">
+            <Download size={18} />
+            Download PDF
           </button>
         </div>
 
-        {/* Quick Stats Grid */}
+        {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-          <ScoreCard 
-            title="Total Score" 
-            value={`${report.score} pts`}
-            subtitle="Based on correctness" 
-            icon={Target} 
+          <ScoreCard
+            title="Total Score"
+            value={`${score} / ${totalPossible}`}
+            subtitle="Points Secured"
+            icon={Target}
             color="navy"
           />
-          <ScoreCard 
-            title="Accuracy" 
-            value={`${accuracy}%`}
-            subtitle={`${correctAnswers}/${totalQuestions} Correct`} 
-            icon={Zap} 
+          <ScoreCard
+            title="Accuracy"
+            value={`${percentage}%`}
+            subtitle={`${correct} Correct Answers`}
+            icon={Zap}
             color="orange"
           />
-          <ScoreCard 
-            title="Difficulty" 
-            value={report.oaTest?.difficulty || 'Medium'} 
-            subtitle="Level of Assessment" 
-            icon={Award} 
+          <ScoreCard
+            title="Questions"
+            value={`${attempted} / ${total}`}
+            subtitle="Attempt Rate"
+            icon={BarChart3}
             color="blue"
           />
-          <ScoreCard 
-            title="Status" 
-            value="Submitted"
-            subtitle={new Date(report.submittedAt).toLocaleDateString()} 
-            icon={Clock} 
+          <ScoreCard
+            title="Submission"
+            value={report?.submittedAt ? new Date(report.submittedAt).toLocaleDateString() : 'N/A'}
+            subtitle="Finalized Status"
+            icon={Clock}
             color="green"
           />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Sectional Breakdown */}
+          {/* Main Analytics Area */}
           <div className="lg:col-span-8 space-y-8">
-            <DashboardCard title="Results Breakdown" icon={PieChart}>
-              <div className="space-y-6">
-                <div className="p-6 rounded-[2rem] bg-slate-50 border border-slate-100 group">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-                    <div>
-                      <h4 className="font-black text-[#0B1B3B] uppercase tracking-tighter">MCQ Performance</h4>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Efficiency: Optimal</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-green-50 text-green-600 border border-green-100">
-                        {accuracy >= 80 ? 'Excellent' : accuracy >= 60 ? 'Good' : 'Needs Work'}
-                      </span>
-                      <span className="text-xl font-black text-[#0B1B3B]">{accuracy}%</span>
-                    </div>
+            <DashboardCard title="Performance Insights" icon={PieChart}>
+              <div className="space-y-8">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-green-50 p-4 rounded-2xl text-center">
+                    <p className="text-[10px] font-black text-green-600 uppercase tracking-widest mb-1">Correct</p>
+                    <p className="text-2xl font-black text-green-700">{correct}</p>
                   </div>
-                  <div className="h-3 w-full bg-white rounded-full overflow-hidden border border-slate-100">
-                    <div 
-                      className="h-full bg-[#0B1B3B] transition-all duration-1000 ease-out" 
-                      style={{ width: `${accuracy}%` }}
+                  <div className="bg-red-50 p-4 rounded-2xl text-center">
+                    <p className="text-[10px] font-black text-red-600 uppercase tracking-widest mb-1">Incorrect</p>
+                    <p className="text-2xl font-black text-red-700">{incorrect}</p>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-2xl text-center">
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Skipped</p>
+                    <p className="text-2xl font-black text-slate-700">{total - attempted}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h4 className="font-bold text-[#0B1B3B]">Overall Grade</h4>
+                    <span className="text-2xl font-black text-orange-600">{percentage}%</span>
+                  </div>
+                  <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200 p-1">
+                    <div
+                      className="h-full bg-[#0B1B3B] rounded-full transition-all duration-1000"
+                      style={{ width: `${percentage}%` }}
                     />
                   </div>
                 </div>
-              </div>
-            </DashboardCard>
 
-            <DashboardCard title="Strengths & Improvements" icon={TrendingUp}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="space-y-4">
-                  <h4 className="text-xs font-black text-green-600 uppercase tracking-widest px-4 py-2 bg-green-50 rounded-xl w-fit">Identified Strengths</h4>
-                  <ul className="space-y-3">
-                    {accuracy > 70 ? (
-                      ['Concept Fundamentals', 'Technical Accuracy', 'Time Efficiency'].map((s, i) => (
-                        <li key={i} className="flex items-center gap-3 text-sm font-bold text-slate-600">
-                          <div className="w-2 h-2 rounded-full bg-green-500" />
-                          {s}
-                        </li>
-                      ))
-                    ) : (
-                      ['Attempt Persistence', 'Rule Adherence'].map((s, i) => (
-                        <li key={i} className="flex items-center gap-3 text-sm font-bold text-slate-600">
-                          <div className="w-2 h-2 rounded-full bg-green-500" />
-                          {s}
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                </div>
-                <div className="space-y-4">
-                  <h4 className="text-xs font-black text-orange-600 uppercase tracking-widest px-4 py-2 bg-orange-50 rounded-xl w-fit">Improvement Areas</h4>
-                  <ul className="space-y-3">
-                    {accuracy < 100 ? (
-                      ['Advanced Logic Application', 'Mistake Analysis', 'Speed Optimization'].map((s, i) => (
-                        <li key={i} className="flex items-center gap-3 text-sm font-bold text-slate-600">
-                          <div className="w-2 h-2 rounded-full bg-orange-500" />
-                          {s}
-                        </li>
-                      ))
-                    ) : (
-                      <li className="text-sm font-bold text-slate-500">No major improvement areas identified. Perfect score!</li>
-                    )}
-                  </ul>
-                </div>
-              </div>
-            </DashboardCard>
-          </div>
-
-          {/* Recruiter Sidebar */}
-          <div className="lg:col-span-4 space-y-8">
-            <DashboardCard className="!p-8 bg-[#0B1B3B] text-white">
-              <div className="flex flex-col items-center text-center">
-                <div className="w-20 h-20 bg-white/10 rounded-3xl flex items-center justify-center mb-6 border border-white/10">
-                  <Building2 size={40} className="text-orange-400" />
-                </div>
-                <h3 className="text-2xl font-black mb-2">Company Insight</h3>
-                <p className="text-slate-400 text-sm mb-8 leading-relaxed">
-                  Your performance in this assessment has been recorded for <span className="text-white font-bold">{report.oaTest?.company || 'Recruiter'}</span>.
-                </p>
-                <div className="w-full p-6 bg-white/5 rounded-2xl border border-white/10">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Evaluation Status</p>
-                  <p className={`text-sm font-bold ${accuracy >= 80 ? 'text-green-400' : 'text-orange-400'}`}>
-                    {accuracy >= 80 ? 'High Recommendation' : 'Evaluation in Progress'}
+                <div className="p-6 bg-[#0B1B3B] rounded-3xl text-white">
+                  <p className="text-xs font-bold leading-relaxed opacity-90">
+                    {percentage >= 85 ? "Excellent work! You've demonstrated a high level of mastery in the required skills. Your performance is in the top tier." :
+                      percentage >= 70 ? "Great job! You have a solid understanding of the concepts. A bit more focus on edge cases could further improve your results." :
+                        percentage >= 50 ? "Good attempt. You have the fundamentals down, but there's significant room for growth in complex problem solving." :
+                          "Keep practicing. Reviewing the core concepts and attempting more mock tests will help you improve your score."}
                   </p>
                 </div>
               </div>
             </DashboardCard>
 
-            <div className="p-8 rounded-[2.5rem] bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-xl shadow-orange-500/20">
-              <h4 className="text-lg font-black mb-4">Share Accomplishment</h4>
-              <p className="text-white/80 text-sm mb-6 leading-relaxed">
-                Add this assessment result to your LinkedIn profile to attract more recruiters.
+            {/* Answers Table */}
+            <DashboardCard title="Question Analysis" icon={BarChart3}>
+              <div className="space-y-4">
+                {(report?.answers || []).map((ans, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs ${ans?.isCorrect ? 'bg-green-100 text-green-700' : ans?.answer ? 'bg-red-100 text-red-700' : 'bg-slate-200 text-slate-500'
+                        }`}>
+                        {idx + 1}
+                      </div>
+                      <p className="text-sm font-bold text-[#0B1B3B]">Question {idx + 1}</p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className="text-xs font-black text-slate-400">{ans?.pointsEarned || 0} Pts</span>
+                      {ans?.isCorrect ? (
+                        <CheckCircle size={18} className="text-green-500" />
+                      ) : (
+                        <AlertCircle size={18} className={ans?.answer ? "text-red-500" : "text-slate-300"} />
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </DashboardCard>
+          </div>
+
+          {/* Sidebar */}
+          <div className="lg:col-span-4 space-y-8">
+            <div className="bg-gradient-to-br from-orange-500 to-amber-500 rounded-[2.5rem] p-8 text-white shadow-xl shadow-orange-500/20">
+              <Trophy size={32} className="mb-6" />
+              <h3 className="text-2xl font-black mb-3 italic tracking-tight">Verified Result</h3>
+              <p className="text-white/80 text-sm leading-relaxed mb-6 font-medium">
+                This assessment has been proctored and verified by AlgoArmy's integrity engine.
               </p>
-              <button className="w-full py-4 rounded-xl bg-white text-orange-600 font-black text-xs uppercase tracking-widest hover:bg-orange-50 transition-all">
-                Add to LinkedIn
-              </button>
+              <div className="py-3 px-4 bg-white/10 rounded-xl border border-white/10 flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-widest">ID Verification</span>
+                <span className="text-[10px] font-black uppercase bg-white text-orange-600 px-2 py-0.5 rounded">Passed</span>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-[2.5rem] p-8 border border-orange-100 shadow-xl shadow-orange-900/5">
+              <h4 className="font-black text-[#0B1B3B] mb-4">Next Steps</h4>
+              <div className="space-y-4">
+                <button
+                  onClick={() => navigate('/oa')}
+                  className="w-full py-4 bg-[#0B1B3B] text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-navy-800 transition-all"
+                >
+                  Try More Tests
+                </button>
+                <button
+                  onClick={() => navigate('/dashboard')}
+                  className="w-full py-4 bg-slate-50 border border-slate-200 text-slate-500 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-100 transition-all"
+                >
+                  Return Dashboard
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -309,3 +292,25 @@ const OAReport = () => {
 };
 
 export default OAReport;
+
+const Trophy = ({ size, className }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+    <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+    <path d="M4 22h16" />
+    <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+    <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+    <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+  </svg>
+);

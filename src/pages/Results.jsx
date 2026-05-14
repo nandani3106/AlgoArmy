@@ -31,6 +31,7 @@ const Results = () => {
         ]);
 
         const contestsData = await contestsRes.json();
+        console.log("Contest Results:", contestsData.data);
         const oaData = await oaRes.json();
         const interviewsData = await interviewsRes.json();
 
@@ -46,7 +47,11 @@ const Results = () => {
               timestamp: new Date(r.submittedAt).getTime()
             })),
             ...(oaData.data || []).map(r => ({
-              id: r._id || r.id,
+              id:
+                r.oaTest?._id ||
+                r.oaTest ||
+                r._id ||
+                r.id,
               type: 'OA',
               title: r.testTitle,
               company: r.company,
@@ -81,12 +86,12 @@ const Results = () => {
   }, [navigate]);
 
   const filteredResults = results.filter(item => {
-    const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         (item.company && item.company.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesTab = activeTab === 'All' || 
-                      (activeTab === 'Contests' && item.type === 'Contest') ||
-                      (activeTab === 'Assessments' && item.type === 'OA') ||
-                      (activeTab === 'Interviews' && item.type === 'Interview');
+    const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (item.company && item.company.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesTab = activeTab === 'All' ||
+      (activeTab === 'Contests' && item.type === 'Contest') ||
+      (activeTab === 'Assessments' && item.type === 'OA') ||
+      (activeTab === 'Interviews' && item.type === 'Interview');
     return matchesSearch && matchesTab;
   });
 
@@ -140,8 +145,8 @@ const Results = () => {
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="relative w-full md:w-96 group">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-orange-500 transition-colors" size={20} />
-              <input 
-                type="text" 
+              <input
+                type="text"
                 placeholder="Search by title or company..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -151,7 +156,7 @@ const Results = () => {
 
             <div className="flex items-center gap-2 bg-slate-50 border border-slate-100 p-1.5 rounded-2xl w-full md:w-auto overflow-x-auto custom-scrollbar">
               {['All', 'Contests', 'Assessments', 'Interviews'].map((tab) => (
-                <button 
+                <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
                   className={`px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === tab ? 'bg-[#0B1B3B] text-white shadow-lg' : 'text-slate-400 hover:text-[#0B1B3B]'}`}
@@ -174,10 +179,16 @@ const Results = () => {
         {/* Results List */}
         <div className="grid grid-cols-1 gap-6">
           {filteredResults.map((result) => (
-            <div 
+            <div
               key={`${result.type}-${result.id}`}
               className="bg-white rounded-[2rem] p-8 shadow-xl shadow-orange-900/5 border border-orange-100/50 flex flex-col md:flex-row items-center justify-between gap-8 group hover:border-orange-500/30 transition-all cursor-pointer"
-              onClick={() => navigate(`/results/${result.type.toLowerCase()}/${result.id}`)}
+              onClick={() => {
+                if (result.type === 'OA') {
+                  navigate(`/oa/${result.id}/report`);
+                } else {
+                  navigate(`/results/${result.type.toLowerCase()}/${result.id}`);
+                }
+              }}
             >
               <div className="flex items-center gap-6 w-full md:w-auto">
                 <div className={`w-16 h-16 rounded-[1.5rem] flex items-center justify-center border ${getBadgeStyle(result.type)}`}>

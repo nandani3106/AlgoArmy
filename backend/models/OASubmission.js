@@ -30,6 +30,34 @@ const oaSubmissionSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    percentage: {
+      type: Number,
+      default: 0,
+    },
+    totalQuestions: {
+      type: Number,
+      default: 0,
+    },
+    attemptedQuestions: {
+      type: Number,
+      default: 0,
+    },
+    unattemptedQuestions: {
+      type: Number,
+      default: 0,
+    },
+    correctAnswers: {
+      type: Number,
+      default: 0,
+    },
+    incorrectAnswers: {
+      type: Number,
+      default: 0,
+    },
+    totalPossibleScore: {
+      type: Number,
+      default: 0,
+    },
     status: {
       type: String,
       enum: ["In Progress", "Submitted"],

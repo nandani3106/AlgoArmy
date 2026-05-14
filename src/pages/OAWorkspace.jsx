@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  Clock, Send, ChevronLeft, ChevronRight, 
+import {
+  Clock, Send, ChevronLeft, ChevronRight,
   Settings, MessageSquare, AlertTriangle, Building2,
   CheckCircle, Bookmark, Maximize2, Loader2
 } from 'lucide-react';
@@ -14,7 +14,7 @@ const API_BASE = 'http://localhost:5000';
 const OAWorkspace = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  
+
   const [oa, setOa] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -107,7 +107,16 @@ const OAWorkspace = () => {
 
       const data = await res.json();
       if (data.success) {
-        localStorage.setItem("oaSubmission", JSON.stringify(data.data));
+        localStorage.setItem(
+          "oaSubmission",
+          JSON.stringify({
+            ...data.submission,
+            oaTest:
+              data.submission?.oaTest?._id ||
+              data.submission?.oaTest ||
+              id,
+          })
+        );
         navigate(`/oa/${id}/submitted`);
       } else {
         if (res.status === 401 || res.status === 403) {
@@ -157,8 +166,8 @@ const OAWorkspace = () => {
               {formatTime(timeLeft)}
             </span>
           </div>
-          
-          <button 
+
+          <button
             onClick={() => submitAssessment(false)}
             disabled={submitting}
             className="px-6 py-2 rounded-xl bg-orange-600 text-white text-xs font-black hover:bg-orange-700 transition-all shadow-lg shadow-orange-900/20 flex items-center gap-2 uppercase tracking-widest disabled:opacity-50"
@@ -172,14 +181,14 @@ const OAWorkspace = () => {
       <div className="flex-1 flex overflow-hidden">
         {/* Left: Question & Navigator */}
         <div className="w-1/4 h-full border-r border-slate-200 bg-white flex flex-col p-6 space-y-8 overflow-y-auto custom-scrollbar">
-          <QuestionNavigator 
-            questions={questions} 
-            currentIdx={currentIdx} 
+          <QuestionNavigator
+            questions={questions}
+            currentIdx={currentIdx}
             onSelect={setCurrentIdx}
             answers={answers}
             isApiMode={true}
           />
-          
+
           <div className="bg-orange-50 p-6 rounded-3xl border border-orange-100 flex gap-4 items-start">
             <AlertTriangle className="text-orange-600 shrink-0" size={20} />
             <p className="text-[10px] text-orange-800 font-bold leading-relaxed uppercase tracking-tight">
@@ -219,16 +228,14 @@ const OAWorkspace = () => {
                         <button
                           key={i}
                           onClick={() => handleAnswer(option)}
-                          className={`w-full p-6 rounded-2xl border text-left transition-all flex items-center justify-between group ${
-                            answers[currentQ._id] === option 
-                              ? 'bg-[#0B1B3B] border-navy-900 text-white' 
+                          className={`w-full p-6 rounded-2xl border text-left transition-all flex items-center justify-between group ${answers[currentQ._id] === option
+                              ? 'bg-[#0B1B3B] border-navy-900 text-white'
                               : 'bg-slate-50 border-slate-100 text-slate-600 hover:border-orange-200'
-                          }`}
+                            }`}
                         >
                           <div className="flex items-center gap-4">
-                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs ${
-                              answers[currentQ._id] === option ? 'bg-white/10' : 'bg-white'
-                            }`}>
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs ${answers[currentQ._id] === option ? 'bg-white/10' : 'bg-white'
+                              }`}>
                               {String.fromCharCode(65 + i)}
                             </div>
                             <span className="font-bold">{option}</span>
@@ -244,7 +251,7 @@ const OAWorkspace = () => {
                       </p>
                       <div className="relative pt-8">
                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Solution Editor</p>
-                        <textarea 
+                        <textarea
                           className="w-full h-64 bg-slate-900 text-slate-300 font-mono text-sm p-8 rounded-3xl outline-none focus:ring-2 focus:ring-orange-500/20 transition-all custom-scrollbar resize-none"
                           placeholder="// Write your code here..."
                           value={answers[currentQ._id] || ''}
@@ -257,17 +264,16 @@ const OAWorkspace = () => {
 
                 {/* Navigation Buttons */}
                 <div className="flex items-center justify-between pt-4">
-                  <button 
+                  <button
                     disabled={currentIdx === 0}
                     onClick={() => setCurrentIdx(prev => prev - 1)}
-                    className={`flex items-center gap-2 px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${
-                      currentIdx === 0 ? 'text-slate-300' : 'text-slate-600 hover:bg-white'
-                    }`}
+                    className={`flex items-center gap-2 px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${currentIdx === 0 ? 'text-slate-300' : 'text-slate-600 hover:bg-white'
+                      }`}
                   >
                     <ChevronLeft size={20} />
                     Previous
                   </button>
-                  <button 
+                  <button
                     onClick={() => {
                       if (currentIdx < questions.length - 1) {
                         setCurrentIdx(prev => prev + 1);

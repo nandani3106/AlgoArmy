@@ -22,6 +22,15 @@ const contests = [
     durationMinutes: 180,
     status: "live",
   },
+  {
+    title: "Amazon Hiring Challenge",
+    description: "Mock coding contest based on real hiring challenges.",
+    startTime: new Date(),
+    endTime: new Date(Date.now() + 3 * 60 * 60 * 1000), // 3 hours later
+    durationMinutes: 180,
+    difficulty: "Hard",
+    status: "live"
+  }
 ];
 
 const seedContests = async () => {
@@ -44,7 +53,10 @@ const seedContests = async () => {
       {
         contest: liveContest._id,
         title: "Two Sum",
-        description: "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.",
+        statement:
+          "Given an array of integers nums and an integer target, return the indices of the two numbers such that they add up to the target.",
+        description:
+          "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.",
         difficulty: "Easy",
         points: 10,
         constraints: "2 <= nums.length <= 10^4",
@@ -53,7 +65,10 @@ const seedContests = async () => {
       {
         contest: liveContest._id,
         title: "Longest Substring Without Repeating Characters",
-        description: "Given a string s, find the length of the longest substring without repeating characters.",
+        statement:
+          "Given a string s, find the length of the longest substring without repeating characters.",
+        description:
+          "Given a string s, find the length of the longest substring without repeating characters.",
         difficulty: "Medium",
         points: 30,
         constraints: "0 <= s.length <= 5 * 10^4",
@@ -62,13 +77,17 @@ const seedContests = async () => {
       {
         contest: liveContest._id,
         title: "Median of Two Sorted Arrays",
-        description: "Given two sorted arrays nums1 and nums2 of size m and n respectively, return the median of the two sorted arrays.",
+        statement:
+          "Given two sorted arrays nums1 and nums2 of size m and n respectively, return the median of the two sorted arrays.",
+        description:
+          "Given two sorted arrays nums1 and nums2 of size m and n respectively, return the median of the two sorted arrays.",
         difficulty: "Hard",
         points: 50,
         constraints: "nums1.length == m, nums2.length == n",
         order: 3,
       },
     ];
+
 
     await ContestProblem.insertMany(problems);
     console.log("Inserted 3 contest problems.");
