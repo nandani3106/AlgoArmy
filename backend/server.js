@@ -11,14 +11,13 @@ connectDB();
 const app = express();
 
 app.use(cors());
+
 app.use(express.json());
 
 app.use("/api/users", userRoutes);
 
 app.get("/", (req, res) => {
-  res.send(
-    "AlgoArmy Backend Running"
-  );
+  res.send("AlgoArmy Backend Running");
 });
 
 const PORT =

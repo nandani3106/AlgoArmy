@@ -4,17 +4,19 @@ import User from "../models/User.js";
 const router = express.Router();
 
 router.get("/", async (req, res) => {
-  const users =
-    await User.find();
+  try {
+    const users =
+      await User.find();
 
-  res.json(users);
-});
-
-router.post("/", async (req, res) => {
-  const newUser =
-    await User.create(req.body);
-
-  res.json(newUser);
+    res.json(users);
+  } catch (error) {
+    res
+      .status(500)
+      .json({
+        message:
+          "Error fetching users",
+      });
+  }
 });
 
 export default router;
