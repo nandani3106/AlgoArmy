@@ -39,6 +39,8 @@ const userSchema = new mongoose.Schema({
   leetcode: { type: String, default: "" },
   codeforces: { type: String, default: "" },
   resumeUrl: { type: String, default: "" },
+  projects: { type: [String], default: [] },
+  extractedResumeText: { type: String, default: "" },
   createdAt: {
     type: Date,
     default: Date.now,

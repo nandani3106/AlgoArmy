@@ -18,6 +18,10 @@ const InterviewReport = () => {
   const [downloading, setDownloading] = React.useState(false);
   const [downloaded, setDownloaded] = React.useState(false);
   const reportRef = React.useRef(null);
+
+  // Read real data from localStorage
+  const skills = JSON.parse(localStorage.getItem("extractedSkills") || "[]");
+  const projects = JSON.parse(localStorage.getItem("extractedProjects") || "[]");
   
   const interview = MOCK_INTERVIEWS.find(item => item.id === id) || MOCK_INTERVIEWS[0];
 
@@ -218,6 +222,40 @@ const InterviewReport = () => {
                   >
                     Retake for Improvement
                   </button>
+                </div>
+              </div>
+            </DashboardCard>
+
+            <DashboardCard title="Interview Profile" icon={Code2}>
+              <div className="space-y-6">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Evaluated Skills</p>
+                  <div className="flex flex-wrap gap-2">
+                    {skills.length > 0 ? (
+                      skills.map((skill, i) => (
+                        <span key={i} className="px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-100 text-[10px] font-bold text-slate-600">
+                          {skill}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-xs text-slate-400 italic">No skills recorded</span>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Key Projects Analyzed</p>
+                  <div className="space-y-2">
+                    {projects.length > 0 ? (
+                      projects.map((proj, i) => (
+                        <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+                          <Briefcase size={14} className="text-blue-500" />
+                          <span className="text-xs font-bold text-[#0B1B3B]">{proj}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <span className="text-xs text-slate-400 italic">No projects recorded</span>
+                    )}
+                  </div>
                 </div>
               </div>
             </DashboardCard>

@@ -12,8 +12,38 @@ const CRITERIA = [
   { icon: Zap, label: 'Problem Solving', desc: 'Analytical thinking and approach' },
 ];
 
+const API_BASE = 'http://localhost:5000';
+
 const InterviewInstructions = () => {
   const navigate = useNavigate();
+
+  React.useEffect(() => {
+    const syncData = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      try {
+        // Fetch latest user profile to get extracted skills/projects
+        const res = await fetch(`${API_BASE}/api/profile`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+
+        if (data.success && data.user) {
+          const skills = data.user.skills || [];
+          const projects = data.user.projects || [];
+          
+          // Requirement: Store in localStorage
+          localStorage.setItem("extractedSkills", JSON.stringify(skills));
+          localStorage.setItem("extractedProjects", JSON.stringify(projects));
+        }
+      } catch (err) {
+        console.error('Failed to sync extraction data:', err);
+      }
+    };
+
+    syncData();
+  }, []);
 
   return (
     <MainLayout>
