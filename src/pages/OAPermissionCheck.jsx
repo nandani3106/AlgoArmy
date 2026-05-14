@@ -1,15 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Shield, ChevronLeft, Building2, Play } from 'lucide-react';
+import { Shield, ChevronLeft, Building2, Play, Loader2 } from 'lucide-react';
 import MainLayout from '../components/MainLayout';
 import GradientButton from '../components/GradientButton';
 import PermissionChecklist from '../components/PermissionChecklist';
-import { MOCK_OA } from '../data/oaData';
+
+const API_BASE = 'http://localhost:5000';
 
 const OAPermissionCheck = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [checking, setChecking] = useState(false);
+  const [oa, setOa] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [permissions, setPermissions] = useState({
     camera: false,
     mic: false,
@@ -18,7 +21,22 @@ const OAPermissionCheck = () => {
     fullscreen: false
   });
 
-  const oa = MOCK_OA.find(item => item.id === id) || MOCK_OA[0];
+  useEffect(() => {
+    const fetchOA = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/api/oa/${id}`);
+        const data = await response.json();
+        if (data.success) {
+          setOa(data.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch OA info:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchOA();
+  }, [id]);
 
   const runChecks = () => {
     setChecking(true);
@@ -33,6 +51,17 @@ const OAPermissionCheck = () => {
   };
 
   const allGranted = Object.values(permissions).every(p => p === true);
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4">
+          <Loader2 className="text-orange-500 animate-spin" size={48} />
+          <p className="text-slate-500 font-bold animate-pulse">Initializing System Check...</p>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -55,7 +84,7 @@ const OAPermissionCheck = () => {
               System Permission Check
             </h1>
             <p className="text-slate-500 font-medium">
-              We need to verify your hardware and environment settings to ensure a fair assessment for <span className="text-[#0B1B3B] font-bold">{oa.company}</span>.
+              We need to verify your hardware and environment settings to ensure a fair assessment for <span className="text-[#0B1B3B] font-bold">{oa?.company || 'Recruiter'}</span>.
             </p>
           </div>
 

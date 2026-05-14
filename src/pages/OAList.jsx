@@ -1,22 +1,87 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import MainLayout from '../components/MainLayout';
 import OACard from '../components/OACard';
-import { MOCK_OA } from '../data/oaData';
-import { Search, Filter, Briefcase, LayoutGrid, List as ListIcon } from 'lucide-react';
+import { Search, Filter, Briefcase, LayoutGrid, List as ListIcon, Loader2, AlertCircle } from 'lucide-react';
+
+const API_BASE = 'http://localhost:5000';
 
 const OAList = () => {
+  const navigate = useNavigate();
+  const [oaList, setOaList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCompany, setFilterCompany] = useState('All');
   const [viewMode, setViewMode] = useState('grid');
 
-  const companies = ['All', ...new Set(MOCK_OA.map(oa => oa.company))];
+  useEffect(() => {
+    const fetchOA = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/api/oa`);
+        const data = await response.json();
+        
+        if (data.success) {
+          // Map backend _id to id for OACard compatibility if needed
+          const formattedData = data.data.map(oa => ({
+            ...oa,
+            id: oa._id
+          }));
+          setOaList(formattedData);
+        } else {
+          setError(data.message || 'Failed to fetch assessments');
+        }
+      } catch (err) {
+        setError('Network error. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const filteredOA = MOCK_OA.filter(oa => {
-    const matchesSearch = oa.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                         oa.company.toLowerCase().includes(searchQuery.toLowerCase());
+    fetchOA();
+  }, []);
+
+  const companies = ['All', ...new Set(oaList.map(oa => oa.company).filter(Boolean))];
+
+  const filteredOA = oaList.filter(oa => {
+    const matchesSearch = (oa.title || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+                         (oa.company || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCompany = filterCompany === 'All' || oa.company === filterCompany;
     return matchesSearch && matchesCompany;
   });
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4">
+          <Loader2 className="text-orange-500 animate-spin" size={48} />
+          <p className="text-slate-500 font-bold animate-pulse">Loading Assessments...</p>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <MainLayout>
+        <div className="min-h-[60vh] flex flex-col items-center justify-center gap-6 text-center px-4">
+          <div className="w-20 h-20 bg-red-50 rounded-3xl flex items-center justify-center border border-red-100">
+            <AlertCircle size={40} className="text-red-500" />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-2xl font-black text-[#0B1B3B]">Unable to load assessments</h3>
+            <p className="text-slate-500 font-medium max-w-md">{error}</p>
+          </div>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-8 py-3 bg-[#0B1B3B] text-white rounded-xl font-bold hover:bg-navy-800 transition-all shadow-lg shadow-navy-900/10"
+          >
+            Try Again
+          </button>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -34,7 +99,7 @@ const OAList = () => {
             <div className="flex flex-wrap gap-4">
               <div className="bg-white/10 px-6 py-3 rounded-2xl flex items-center gap-3 border border-white/5">
                 <Briefcase size={20} className="text-orange-400" />
-                <span className="font-bold text-sm">{MOCK_OA.length} Available</span>
+                <span className="font-bold text-sm">{oaList.length} Available</span>
               </div>
             </div>
           </div>

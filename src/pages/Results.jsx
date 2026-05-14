@@ -1,15 +1,86 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '../components/MainLayout';
-import { MOCK_RESULTS } from '../data/resultsData';
-import { Search, Filter, Trophy, Briefcase, Video, ChevronRight, Calendar } from 'lucide-react';
+import { Search, Filter, Trophy, Briefcase, Video, ChevronRight, Calendar, Loader2, AlertCircle } from 'lucide-react';
+
+const API_BASE = 'http://localhost:5000';
 
 const Results = () => {
   const navigate = useNavigate();
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('All');
 
-  const filteredResults = MOCK_RESULTS.filter(item => {
+  useEffect(() => {
+    const fetchAllResults = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          navigate('/login');
+          return;
+        }
+
+        const headers = { 'Authorization': `Bearer ${token}` };
+
+        const [contestsRes, oaRes, interviewsRes] = await Promise.all([
+          fetch(`${API_BASE}/api/results/contests`, { headers }),
+          fetch(`${API_BASE}/api/results/oa`, { headers }),
+          fetch(`${API_BASE}/api/results/interviews`, { headers })
+        ]);
+
+        const contestsData = await contestsRes.json();
+        const oaData = await oaRes.json();
+        const interviewsData = await interviewsRes.json();
+
+        if (contestsData.success && oaData.success && interviewsData.success) {
+          // Normalize and combine
+          const normalized = [
+            ...(contestsData.data || []).map(r => ({
+              id: r._id || r.id,
+              type: 'Contest',
+              title: r.contestTitle,
+              score: `${r.score} pts`,
+              date: new Date(r.submittedAt).toLocaleDateString(),
+              timestamp: new Date(r.submittedAt).getTime()
+            })),
+            ...(oaData.data || []).map(r => ({
+              id: r._id || r.id,
+              type: 'OA',
+              title: r.testTitle,
+              company: r.company,
+              score: `${r.score} pts`,
+              date: new Date(r.submittedAt).toLocaleDateString(),
+              timestamp: new Date(r.submittedAt).getTime()
+            })),
+            ...(interviewsData.data || []).map(r => ({
+              id: r._id || r.id,
+              type: 'Interview',
+              title: 'AI Technical Interview',
+              score: `${r.overallScore}%`,
+              date: new Date(r.createdAt).toLocaleDateString(),
+              timestamp: new Date(r.createdAt).getTime(),
+              strengths: r.strengths,
+              improvements: r.improvements
+            }))
+          ].sort((a, b) => b.timestamp - a.timestamp);
+
+          setResults(normalized);
+        } else {
+          setError('Some results could not be loaded.');
+        }
+      } catch (err) {
+        setError('Network error. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAllResults();
+  }, [navigate]);
+
+  const filteredResults = results.filter(item => {
     const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                          (item.company && item.company.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesTab = activeTab === 'All' || 
@@ -36,6 +107,17 @@ const Results = () => {
       default: return 'bg-slate-50 text-slate-600 border-slate-100';
     }
   };
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4">
+          <Loader2 className="text-orange-500 animate-spin" size={48} />
+          <p className="text-slate-500 font-bold">Fetching Performance History...</p>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -81,11 +163,19 @@ const Results = () => {
           </div>
         </div>
 
+        {/* Error State */}
+        {error && (
+          <div className="p-8 bg-red-50 border border-red-100 rounded-3xl flex items-center gap-4 text-red-600">
+            <AlertCircle size={24} />
+            <p className="font-bold">{error}</p>
+          </div>
+        )}
+
         {/* Results List */}
         <div className="grid grid-cols-1 gap-6">
           {filteredResults.map((result) => (
             <div 
-              key={result.id}
+              key={`${result.type}-${result.id}`}
               className="bg-white rounded-[2rem] p-8 shadow-xl shadow-orange-900/5 border border-orange-100/50 flex flex-col md:flex-row items-center justify-between gap-8 group hover:border-orange-500/30 transition-all cursor-pointer"
               onClick={() => navigate(`/results/${result.type.toLowerCase()}/${result.id}`)}
             >
@@ -119,12 +209,6 @@ const Results = () => {
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Score / Rating</p>
                   <p className="text-sm font-black text-orange-600">{result.score}</p>
                 </div>
-                {result.rank && (
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Rank / Percentile</p>
-                    <p className="text-sm font-black text-blue-600">{result.rank}</p>
-                  </div>
-                )}
                 <div className="ml-auto">
                   <button className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-slate-50 border border-slate-100 text-[#0B1B3B] text-[10px] font-black uppercase tracking-widest group-hover:bg-[#0B1B3B] group-hover:text-white transition-all">
                     View Report
@@ -135,7 +219,7 @@ const Results = () => {
             </div>
           ))}
 
-          {filteredResults.length === 0 && (
+          {!error && filteredResults.length === 0 && (
             <div className="py-20 flex flex-col items-center justify-center text-center">
               <div className="w-24 h-24 bg-orange-50 rounded-[2rem] flex items-center justify-center mb-6 border border-orange-100">
                 <Search size={40} className="text-orange-200" />

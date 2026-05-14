@@ -10,6 +10,8 @@ import profileRoutes from "./routes/profileRoutes.js";
 import contestRoutes from "./routes/contestRoutes.js";
 import resumeRoutes from "./routes/resumeRoutes.js";
 import interviewAiRoutes from "./routes/interviewAiRoutes.js";
+import oaRoutes from "./routes/oaRoutes.js";
+import resultsRoutes from "./routes/resultsRoutes.js";
 
 // ES Module __dirname workaround
 const __filename = fileURLToPath(import.meta.url);
@@ -33,6 +35,8 @@ app.use("/api/profile", profileRoutes);
 app.use("/api/contests", contestRoutes);
 app.use("/api/resume", resumeRoutes);
 app.use("/api/interview-ai", interviewAiRoutes);
+app.use("/api/oa", oaRoutes);
+app.use("/api/results", resultsRoutes);
 
 app.get("/", (req, res) => {
   res.send(
