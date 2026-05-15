@@ -10,6 +10,7 @@ import aiInterviewRoutes from "./routes/aiInterviewRoutes.js";
 import interviewResultRoutes from "./routes/interviewResultRoutes.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
 import settingsRoutes from "./routes/settingsRoutes.js";
+import dashboardRoutes from "./routes/dashboardRoutes.js";
 
 dotenv.config();
 
@@ -39,6 +40,11 @@ app.use("/api/contests", contestRoutes);
   app.use("/api/analytics", analyticsRoutes);
 
   app.use("/api/settings", settingsRoutes);
+
+  app.use(
+    "/api/dashboard",
+    dashboardRoutes
+  );
 
 app.get("/", (req, res) => {
   res.send("AlgoArmy Backend Running");

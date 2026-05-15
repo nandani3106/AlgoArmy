@@ -1,8 +1,18 @@
 import axios from "axios";
 
-const BASE_URL = "http://localhost:5000/api/interview-results";
+const API =
+  "http://localhost:5000/api/ai-interviews";
 
-export const getInterviewResults = () => axios.get(BASE_URL);
+export const getInterviewResults =
+  () => axios.get(API);
 
-export const createInterviewResult = (data) =>
-  axios.post(BASE_URL, data);
+export const updateInterviewStatus = (
+  id,
+  status
+) =>
+  axios.put(
+    `${API}/${id}/status`,
+    {
+      status,
+    }
+  );

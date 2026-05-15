@@ -1,32 +1,100 @@
 import AIInterview from "../models/AIInterview.js";
 
-// GET ALL INTERVIEWS
+
+// ================= GET ALL =================
 export const getAIInterviews = async (req, res) => {
   try {
-    const interviews = await AIInterview.find().sort({ createdAt: -1 });
+    const interviews = await AIInterview.find().sort({
+      createdAt: -1,
+    });
+
     res.json(interviews);
   } catch (err) {
-    res.status(500).json({ message: "Error fetching interviews" });
+    console.log(err);
+    res.status(500).json({
+      message: "Error fetching interviews",
+    });
   }
 };
 
-// CREATE INTERVIEW
+
+// ================= CREATE =================
 export const createAIInterview = async (req, res) => {
   try {
-    const interview = await AIInterview.create(req.body);
+    const interview = await AIInterview.create(
+      req.body
+    );
+
     res.json(interview);
   } catch (err) {
     console.log(err);
-    res.status(500).json({ message: "Error creating interview" });
+
+    res.status(500).json({
+      message: "Error creating interview",
+    });
   }
 };
 
-// GET SINGLE INTERVIEW
-export const getAIInterviewById = async (req, res) => {
+
+// ================= GET SINGLE =================
+export const getAIInterviewById = async (
+  req,
+  res
+) => {
   try {
-    const interview = await AIInterview.findById(req.params.id);
+    const interview =
+      await AIInterview.findById(
+        req.params.id
+      );
+
+    if (!interview) {
+      return res.status(404).json({
+        message: "Interview not found",
+      });
+    }
+
     res.json(interview);
   } catch (err) {
-    res.status(500).json({ message: "Interview not found" });
+    console.log(err);
+
+    res.status(500).json({
+      message: "Interview not found",
+    });
   }
 };
+
+
+// ================= UPDATE STATUS =================
+export const updateInterviewStatus =
+  async (req, res) => {
+    try {
+      const { status } = req.body;
+
+      const interview =
+        await AIInterview.findByIdAndUpdate(
+          req.params.id,
+          {
+            status,
+          },
+          {
+            new: true,
+          }
+        );
+
+      if (!interview) {
+        return res.status(404).json({
+          message:
+            "Interview not found",
+        });
+      }
+
+      res.json(interview);
+    } catch (err) {
+      console.log(err);
+
+      res.status(500).json({
+        message:
+          "Error updating status",
+      });
+    }
+  };

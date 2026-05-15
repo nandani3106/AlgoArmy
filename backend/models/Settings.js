@@ -7,6 +7,7 @@ const settingsSchema = new mongoose.Schema(
       ref: "User",
     },
 
+    // ================= PROFILE =================
     name: String,
     email: String,
     profession: String,
@@ -15,15 +16,130 @@ const settingsSchema = new mongoose.Schema(
     bio: String,
     skills: String,
 
-    notifications: { type: Boolean, default: true },
-    emailAlerts: { type: Boolean, default: true },
-    twoFactor: { type: Boolean, default: false },
+    // ================= PLATFORM INFO =================
+    platformName: {
+      type: String,
+      default: "AlgoArmy",
+    },
 
-    theme: { type: String, default: "Light" },
+    tagline: {
+      type: String,
+      default: "Smarter Interviews, Better Hiring",
+    },
 
-    defaultContestDuration: { type: Number, default: 90 },
-    defaultOADuration: { type: Number, default: 60 },
-    defaultInterviewDuration: { type: Number, default: 30 },
+    language: {
+      type: String,
+      default: "English",
+    },
+
+    timezone: {
+      type: String,
+      default: "Asia/Kolkata",
+    },
+
+    dateFormat: {
+      type: String,
+      default: "DD MMM YYYY",
+    },
+
+    timeFormat: {
+      type: String,
+      default: "24 Hour",
+    },
+
+    // ================= SITE SETTINGS =================
+    platformLive: {
+      type: Boolean,
+      default: true,
+    },
+
+    userRegistration: {
+      type: Boolean,
+      default: true,
+    },
+
+    emailVerification: {
+      type: Boolean,
+      default: true,
+    },
+
+    maintenanceMode: {
+      type: Boolean,
+      default: false,
+    },
+
+    // ================= AI SETTINGS =================
+    aiModel: {
+      type: String,
+      default: "GPT-4o",
+    },
+
+    evaluationStrictness: {
+      type: String,
+      default: "Medium",
+    },
+
+    plagiarismDetection: {
+      type: Boolean,
+      default: true,
+    },
+
+    aiFeedbackVisibility: {
+      type: Boolean,
+      default: true,
+    },
+
+    // ================= INTERVIEW SETTINGS =================
+    defaultInterviewDuration: {
+      type: Number,
+      default: 30,
+    },
+
+    maxInterviewDuration: {
+      type: Number,
+      default: 120,
+    },
+
+    enableCodeEditor: {
+      type: Boolean,
+      default: true,
+    },
+
+    allowCopyPaste: {
+      type: Boolean,
+      default: false,
+    },
+
+    // ================= OLD SETTINGS =================
+    notifications: {
+      type: Boolean,
+      default: true,
+    },
+
+    emailAlerts: {
+      type: Boolean,
+      default: true,
+    },
+
+    twoFactor: {
+      type: Boolean,
+      default: false,
+    },
+
+    theme: {
+      type: String,
+      default: "Light",
+    },
+
+    defaultContestDuration: {
+      type: Number,
+      default: 90,
+    },
+
+    defaultOADuration: {
+      type: Number,
+      default: 60,
+    },
   },
   { timestamps: true }
 );
