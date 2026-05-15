@@ -36,6 +36,15 @@ const oaQuestionSchema = new mongoose.Schema(
       type: Number,
       default: 1,
     },
+    // Coding specific fields
+    timeLimit: { type: Number, default: 2 },
+    memoryLimit: { type: Number, default: 256 },
+    sampleTestCases: [
+      { input: String, output: String, isHidden: { type: Boolean, default: false } }
+    ],
+    hiddenTestCases: [
+      { input: String, output: String, isHidden: { type: Boolean, default: true } }
+    ],
   },
   {
     timestamps: true,

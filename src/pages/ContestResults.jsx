@@ -98,9 +98,17 @@ const ContestResults = () => {
                         </td>
                         <td className="px-4 py-6 font-black text-[#0B1B3B]">{s.score}</td>
                         <td className="px-4 py-6 text-sm text-slate-500 font-medium">{new Date(s.submittedAt).toLocaleString()}</td>
+                        <td className="px-4 py-6">
+                           <button 
+                            onClick={() => navigate(`/results/contest/${id}`)}
+                            className="p-2 text-slate-400 hover:text-[#0B1B3B] hover:bg-slate-100 rounded-lg transition-all"
+                           >
+                              <ChevronRight size={18} />
+                           </button>
+                        </td>
                       </tr>
                     )) : (
-                      <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-400 font-medium">No submissions yet.</td></tr>
+                      <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-400 font-medium">No submissions yet.</td></tr>
                     )}
                   </tbody>
                 </table>

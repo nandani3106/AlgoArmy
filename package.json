@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "@monaco-editor/react": "^4.7.0",
     "@tailwindcss/vite": "^4.3.0",
     "clsx": "^2.1.1",
     "framer-motion": "^12.38.0",
@@ -21,6 +22,7 @@
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.15.0",
     "recharts": "^3.8.1",
+    "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.3.0"
   },

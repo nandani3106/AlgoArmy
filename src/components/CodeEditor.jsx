@@ -1,49 +1,51 @@
 import React from 'react';
+import Editor from '@monaco-editor/react';
 
-const CodeEditor = ({ code, onChange, language }) => {
+const CodeEditor = ({ code, onChange, language, theme = "vs-dark", options = {} }) => {
+  const handleEditorChange = (value) => {
+    onChange(value);
+  };
+
+  const defaultOptions = {
+    fontSize: 14,
+    minimap: { enabled: false },
+    scrollBeyondLastLine: false,
+    lineNumbers: 'on',
+    roundedSelection: false,
+    cursorStyle: 'line',
+    automaticLayout: true,
+    tabSize: 4,
+    padding: { top: 16, bottom: 16 },
+    fontFamily: "'Fira Code', 'Cascadia Code', Consolas, monospace",
+    fontLigatures: true,
+    ...options
+  };
+
+  // Map our language keys to Monaco supported language keys
+  const languageMap = {
+    'javascript': 'javascript',
+    'python': 'python',
+    'cpp': 'cpp',
+    'java': 'java'
+  };
+
   return (
-    <div className="relative h-full bg-[#050d1d] flex flex-col">
-      {/* Editor Header */}
-      <div className="px-6 py-3 border-b border-white/5 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-red-500" />
-            <div className="w-2 h-2 rounded-full bg-amber-500" />
-            <div className="w-2 h-2 rounded-full bg-green-500" />
+    <div className="h-full w-full bg-[#1e1e1e] overflow-hidden relative">
+      <Editor
+        height="100%"
+        width="100%"
+        language={languageMap[language] || 'javascript'}
+        theme={theme}
+        value={code}
+        onChange={handleEditorChange}
+        options={defaultOptions}
+        loading={
+          <div className="flex flex-col items-center justify-center h-full gap-4 bg-[#1e1e1e] text-slate-500">
+            <div className="w-10 h-10 border-4 border-slate-700 border-t-orange-500 rounded-full animate-spin"></div>
+            <span className="font-bold text-xs uppercase tracking-widest">Initializing Environment...</span>
           </div>
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Main.{language === 'javascript' ? 'js' : language === 'python' ? 'py' : 'cpp'}</span>
-        </div>
-      </div>
-
-      {/* Editor Content */}
-      <div className="flex-1 relative flex">
-        {/* Line Numbers */}
-        <div className="w-12 bg-[#081225] border-r border-white/5 py-6 flex flex-col items-center text-slate-700 font-mono text-xs select-none">
-          {Array.from({ length: 40 }).map((_, i) => (
-            <div key={i} className="h-6 flex items-center">{i + 1}</div>
-          ))}
-        </div>
-
-        {/* Textarea */}
-        <textarea
-          value={code}
-          onChange={(e) => onChange(e.target.value)}
-          spellCheck={false}
-          className="flex-1 bg-transparent text-slate-300 font-mono text-sm p-6 focus:outline-none resize-none custom-scrollbar leading-6"
-          placeholder="// Start coding your solution here..."
-        />
-      </div>
-
-      {/* Footer Info */}
-      <div className="px-6 py-2 bg-[#0B1B3B]/50 border-t border-white/5 flex items-center justify-between text-[10px] font-bold text-slate-500">
-        <div className="flex gap-4 uppercase tracking-widest">
-          <span>UTF-8</span>
-          <span>Tab Size: 4</span>
-        </div>
-        <div className="uppercase tracking-widest">
-          Ln {code.split('\n').length}, Col {code.split('\n').pop().length + 1}
-        </div>
-      </div>
+        }
+      />
     </div>
   );
 };

@@ -5,9 +5,11 @@ import {
   getContestById,
   registerForContest,
   getContestProblems,
+  runContestCode,
   submitContestSolution,
   getContestResults,
   getContestLeaderboard,
+  finishContest,
 } from "../controllers/contestController.js";
 
 const router = express.Router();
@@ -20,7 +22,9 @@ router.get("/:id/leaderboard", getContestLeaderboard);
 
 // Protected routes
 router.post("/:id/register", protect, registerForContest);
+router.post("/:id/run", protect, runContestCode);
 router.post("/:id/submit", protect, submitContestSolution);
+router.post("/:id/finish", protect, finishContest);
 router.get("/:id/results", protect, getContestResults);
 
 export default router;

@@ -45,7 +45,11 @@ const ContestDetails = () => {
       });
       if (res.status === 401) { localStorage.removeItem('token'); localStorage.removeItem('user'); navigate('/login'); return; }
       const data = await res.json();
-      if (data.success) { setRegMsg(data.message); setTimeout(() => navigate(`/workspace/${id}/1`), 1000); }
+      if (data.success) { 
+        setRegMsg(data.message); 
+        const firstProblemId = problems[0]?._id || '1';
+        setTimeout(() => navigate(`/workspace/${id}/${firstProblemId}`), 1000); 
+      }
       else setRegErr(data.message || 'Registration failed');
     } catch (e) { setRegErr('Server not reachable.'); }
     finally { setRegistering(false); }
