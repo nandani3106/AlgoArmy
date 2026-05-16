@@ -1,52 +1,85 @@
+import { useEffect, useState } from "react";
 import { useTheme } from "../../context/ThemeContext";
+import { getAnalytics } from "../../api/analyticsApi";
+
 import {
-    LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
-    BarChart, Bar,
-  } from "recharts";
-  
-  export default function Analytics() {
-    const { isDark } = useTheme();
-    const userGrowth = [
-      { month: "Jan", users: 120 }, { month: "Feb", users: 200 },
-      { month: "Mar", users: 340 }, { month: "Apr", users: 500 },
-      { month: "May", users: 780 },
-    ];
-    const platformStats = [
-      { name: "Contests", value: 85 }, { name: "OA Tests", value: 72 },
-      { name: "Interviews", value: 64 },
-    ];
-    const ax = isDark ? '#64748b' : '#94a3b8';
-    const tt = { backgroundColor: isDark ? '#1a1d2b' : '#fff', borderColor: isDark ? '#2d3348' : '#e2e8f0', color: isDark ? '#e2e8f0' : '#0f172a', borderRadius: '12px' };
-    const card = `rounded-2xl p-6 shadow-sm border ${isDark ? 'bg-[#151823] border-[#1e293b]' : 'bg-white border-slate-200'}`;
-    const heading = `text-xl font-semibold mb-4 ${isDark ? 'text-white' : ''}`;
-  
-    return (
-      <>
-        <h1 className={`text-3xl font-bold mb-8 ${isDark ? 'text-white' : ''}`}>Analytics</h1>
-        <div className={`${card} mb-8`}>
-          <h2 className={heading}>User Growth</h2>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={userGrowth}>
-                <XAxis dataKey="month" stroke={ax} /><YAxis stroke={ax} />
-                <Tooltip contentStyle={tt} labelStyle={{ color: tt.color }} />
-                <Line type="monotone" dataKey="users" stroke="#f97316" strokeWidth={3} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-        <div className={card}>
-          <h2 className={heading}>Platform Activity</h2>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={platformStats}>
-                <XAxis dataKey="name" stroke={ax} /><YAxis stroke={ax} />
-                <Tooltip contentStyle={tt} labelStyle={{ color: tt.color }} />
-                <Bar dataKey="value" fill="#fb923c" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </>
-    );
-  }
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+
+export default function Analytics() {
+  const { isDark } = useTheme();
+
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const load = async () => {
+    const res = await getAnalytics();
+    setData(res.data);
+  };
+
+  if (!data) return <p>Loading...</p>;
+
+  const Card = ({ title, value }) => (
+    <div className={`p-5 rounded-xl border ${isDark ? "bg-[#151823] text-white" : "bg-white"}`}>
+      <h3 className="text-sm opacity-70">{title}</h3>
+      <h1 className="text-2xl font-bold mt-2">{value}</h1>
+    </div>
+  );
+
+  return (
+    <div>
+      <h1 className={`text-3xl font-bold mb-6 ${isDark ? "text-white" : ""}`}>
+        Platform Analytics Dashboard
+      </h1>
+
+      {/* USERS */}
+      <div className="grid md:grid-cols-3 gap-4">
+        <Card title="Total Users" value={data.users.total} />
+        <Card title="Weekly Users" value={data.users.weekly} />
+        <Card title="DAU" value={data.activity.dau} />
+
+        <Card title="Contests" value={data.contests.total} />
+        <Card title="Problems" value={data.problems.total} />
+        <Card title="OA Tests" value={data.oaTests.total} />
+        <Card title="AI Interviews" value={data.aiInterviews.total} />
+
+        <Card title="Logins" value={data.activity.logins} />
+        <Card title="Visits" value={data.activity.visits} />
+      </div>
+
+      {/* SIMPLE GROWTH GRAPH (PLACEHOLDER) */}
+      <div className={`mt-10 p-6 border rounded-xl ${isDark ? "bg-[#151823]" : "bg-white"}`}>
+        <h2 className="text-xl font-semibold mb-4 text-white">
+          Growth Overview
+        </h2>
+
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart
+            data={[
+              { name: "Mon", users: 20 },
+              { name: "Tue", users: 40 },
+              { name: "Wed", users: 60 },
+              { name: "Thu", users: 90 },
+              { name: "Fri", users: 120 },
+              { name: "Sat", users: 150 },
+              { name: "Sun", users: 200 },
+            ]}
+          >
+            <XAxis dataKey="name" />
+            <YAxis />
+            <Tooltip />
+            <Line type="monotone" dataKey="users" stroke="#f97316" />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}

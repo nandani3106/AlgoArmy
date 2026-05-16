@@ -7,6 +7,8 @@ const interviewResultSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    name: String,
+    role: String,
     questions: {
       type: Array,
       default: [],
@@ -27,6 +29,13 @@ const interviewResultSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    // Admin/Detailed Scores
+    confidence: Number,
+    communication: Number,
+    technical: Number,
+    problemSolving: Number,
+    overall: Number,
+    
     strengths: {
       type: [String],
       default: [],
@@ -35,15 +44,16 @@ const interviewResultSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
-    createdAt: {
-      type: Date,
-      default: Date.now,
+    status: {
+      type: String,
+      enum: ["Completed", "Flagged", "Rejected", "Shortlisted"],
+      default: "Completed",
     },
+    summary: String,
   },
   {
     timestamps: true,
   }
 );
 
-const InterviewResult = mongoose.model("InterviewResult", interviewResultSchema);
-export default InterviewResult;
+export default mongoose.model("InterviewResult", interviewResultSchema);

@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import Activity from "../models/Activity.js";
 
 // Generate JWT Token
 const generateToken = (userId) => {
@@ -97,6 +98,19 @@ export const login = async (req, res) => {
       });
     }
 
+    // 🔥 Added Activity Logging from Admin Branch
+    try {
+      await Activity.create({
+        userId: user._id,
+        type: "LOGIN",
+      });
+      user.lastLogin = new Date();
+      await user.save();
+    } catch (activityErr) {
+      console.error("Activity Logging Error:", activityErr.message);
+      // Don't fail login if activity logging fails
+    }
+
     // Generate token
     const token = generateToken(user._id);
 
@@ -120,6 +134,9 @@ export const login = async (req, res) => {
     });
   }
 };
+
+// Compatibility export for admin branch if needed
+export const loginUser = login;
 
 // @desc    Get current logged-in user
 // @route   GET /api/auth/me

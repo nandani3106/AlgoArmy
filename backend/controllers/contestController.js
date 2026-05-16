@@ -5,24 +5,27 @@ import ContestRegistration from "../models/ContestRegistration.js";
 import mongoose from "mongoose";
 import { evaluateCode } from "../services/judgeService.js";
 
-// @desc    Get all contests
+// @desc    Get all contests (Unified)
 // @route   GET /api/contests
 // @access  Public
 export const getAllContests = async (req, res) => {
   try {
-    const contests = await Contest.find().sort({ startTime: 1 });
+    const contests = await Contest.find().populate("selectedProblems").sort({ startTime: 1 });
     res.status(200).json({ success: true, count: contests.length, contests });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
+// Compatibility for admin branch
+export const getContests = getAllContests;
+
 // @desc    Get contest by ID
 // @route   GET /api/contests/:id
 // @access  Public
 export const getContestById = async (req, res) => {
   try {
-    const contest = await Contest.findById(req.params.id);
+    const contest = await Contest.findById(req.params.id).populate("selectedProblems");
     if (!contest) return res.status(404).json({ success: false, message: "Contest not found" });
     res.status(200).json({ success: true, contest });
   } catch (error) {
@@ -229,6 +232,9 @@ export const finishContest = async (req, res) => {
   }
 };
 
+// @desc    Get results for a contest
+// @route   GET /api/contests/:id/results
+// @access  Private
 export const getContestResults = async (req, res) => {
   try {
     const submissions = await ContestSubmission.find({ contest: req.params.id, user: req.user._id })
@@ -237,5 +243,46 @@ export const getContestResults = async (req, res) => {
     res.status(200).json({ success: true, submissions });
   } catch (error) {
     res.status(500).json({ success: false, message: "Results error" });
+  }
+};
+
+// Admin Functions
+// @desc    Create contest
+// @route   POST /api/contests
+// @access  Private/Admin
+export const createContest = async (req, res) => {
+  try {
+    const contest = await Contest.create(req.body);
+    res.status(201).json(contest);
+  } catch (err) {
+    res.status(500).json({ message: "Error creating contest" });
+  }
+};
+
+// @desc    Update contest
+// @route   PUT /api/contests/:id
+// @access  Private/Admin
+export const updateContest = async (req, res) => {
+  try {
+    const contest = await Contest.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+    res.json(contest);
+  } catch (err) {
+    res.status(500).json({ message: "Error updating contest" });
+  }
+};
+
+// @desc    Delete contest
+// @route   DELETE /api/contests/:id
+// @access  Private/Admin
+export const deleteContest = async (req, res) => {
+  try {
+    await Contest.findByIdAndDelete(req.params.id);
+    res.json({ message: "Contest deleted" });
+  } catch (err) {
+    res.status(500).json({ message: "Error deleting contest" });
   }
 };

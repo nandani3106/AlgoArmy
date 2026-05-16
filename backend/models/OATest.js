@@ -31,9 +31,52 @@ const oaTestSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    type: {
+      type: String,
+      enum: ["MCQ", "Coding", "Mixed"],
+      default: "Mixed",
+    },
+    // 🔥 Coding Questions (from Problem collection)
+    selectedCodingQuestions: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Problem",
+      },
+    ],
+    // MCQs (multiple supported)
+    mcqs: [
+      {
+        question: String,
+        options: [String],
+        correctOption: String,
+        marks: Number,
+      },
+    ],
+    // Proctoring settings
+    proctoring: {
+      camera: { type: Boolean, default: false },
+      mic: { type: Boolean, default: false },
+      eyeTracking: { type: Boolean, default: false },
+      tabSwitch: { type: Boolean, default: false },
+      copyPasteBlock: { type: Boolean, default: false },
+      fullScreen: { type: Boolean, default: false },
+    },
+    result: {
+      type: String,
+      enum: ["Immediate", "Later"],
+      default: "Later",
+    },
+    passingScore: {
+      type: Number,
+      default: 50,
+    },
+    negativeMarking: {
+      type: Boolean,
+      default: false,
+    },
     status: {
       type: String,
-      enum: ["upcoming", "live", "completed"],
+      enum: ["upcoming", "live", "completed", "Draft", "Published", "Live"],
       default: "upcoming",
     },
     createdBy: {
@@ -46,5 +89,4 @@ const oaTestSchema = new mongoose.Schema(
   }
 );
 
-const OATest = mongoose.model("OATest", oaTestSchema);
-export default OATest;
+export default mongoose.model("OATest", oaTestSchema);

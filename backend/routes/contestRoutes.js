@@ -10,6 +10,9 @@ import {
   getContestResults,
   getContestLeaderboard,
   finishContest,
+  createContest,
+  updateContest,
+  deleteContest,
 } from "../controllers/contestController.js";
 
 const router = express.Router();
@@ -20,11 +23,16 @@ router.get("/:id", getContestById);
 router.get("/:id/problems", getContestProblems);
 router.get("/:id/leaderboard", getContestLeaderboard);
 
-// Protected routes
+// Protected routes (Candidate)
 router.post("/:id/register", protect, registerForContest);
 router.post("/:id/run", protect, runContestCode);
 router.post("/:id/submit", protect, submitContestSolution);
 router.post("/:id/finish", protect, finishContest);
 router.get("/:id/results", protect, getContestResults);
+
+// Admin routes (CRUD)
+router.post("/", protect, createContest); // Usually should also check if user is admin
+router.put("/:id", protect, updateContest);
+router.delete("/:id", protect, deleteContest);
 
 export default router;
