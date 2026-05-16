@@ -1,6 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 
-const MODEL_NAME = "gemini-2.0-flash";
+const MODEL_NAME = "gemini-2.0-flash"; // Using a stable 2.0 version
 
 /**
  * Helper — creates and returns a Gemini client instance.
@@ -107,11 +107,17 @@ Skills: ${skills.join(", ")}
 Projects: ${projects.join(", ")}
 
 Requirements:
-- 6 technical questions based on the candidate's skills and projects
-- 2 project-based questions asking about specific projects listed above
-- 2 HR/behavioral questions suitable for a software engineering role
-- Questions should range from intermediate to advanced difficulty
-- Be specific — reference actual skills and projects from the profile
+- GENERATE A COMPLETELY NEW AND UNIQUE SET OF QUESTIONS EVERY TIME. Do not repeat questions from previous sessions.
+- TOTAL QUESTIONS: 10
+- DISTRIBUTION:
+  1. SYNTAX & CONCEPTS (3 Questions): Focus on the core syntax, internal working, or foundational concepts of the programming languages/frameworks listed in the skills section (e.g., 'Explain hoisting in JS' or 'What are decorators in Python?').
+  2. PROJECT-BASED (4 Questions): Deep-dive into the specific projects mentioned. Ask about architectural decisions, challenges faced, or how a specific feature was implemented.
+  3. BEHAVIORAL & HR (3 Questions): Standard behavioral questions (conflict resolution, teamwork, or situational engineering scenarios).
+- PROGRESSIVE DIFFICULTY:
+  - Q1-Q3: Syntax/Foundational (Easy-Intermediate)
+  - Q4-Q7: Project Deep-Dives (Intermediate-Advanced)
+  - Q8-Q10: Behavioral & Advanced Scenarios (Varying)
+- Be specific — reference actual skills and projects from the profile.
 
 Respond ONLY with valid JSON in this exact format, no extra text:
 {
@@ -158,6 +164,75 @@ Respond ONLY with valid JSON in this exact format, no extra text:
         { type: "project", question: "Which project are you most proud of and why?" },
         { type: "behavioral", question: "Tell me about a time you faced a difficult technical challenge." }
       ]
+    };
+  }
+}
+
+/**
+ * Evaluates an entire interview transcript (questions + user answers).
+ * Returns scores and qualitative feedback.
+ */
+export async function evaluateInterviewResponse(transcriptData) {
+  const ai = getGeminiClient();
+  const { questions, answers } = transcriptData;
+
+  const pairs = questions.map((q, i) => ({
+    question: q,
+    answer: answers[i] || "No answer provided."
+  }));
+
+  const prompt = `
+You are an expert technical interviewer and talent evaluator.
+
+Analyze the following interview transcript where an AI asked questions and a candidate provided answers.
+
+Transcript:
+${pairs.map((p, i) => `Q${i+1}: ${p.question}\nA${i+1}: ${p.answer}`).join("\n\n")}
+
+Based on the candidate's answers, provide a comprehensive evaluation.
+
+Return ONLY valid JSON in this exact format:
+{
+  "technicalScore": 0-100,
+  "communicationScore": 0-100,
+  "overallScore": 0-100,
+  "strengths": ["...", "..."],
+  "improvements": ["...", "..."],
+  "feedback": [
+    { "question": "...", "answer": "...", "score": 0-10, "feedback": "..." },
+    ...
+  ]
+}
+
+Evaluation Criteria:
+1. Technical Correctness: Does the answer demonstrate accurate knowledge?
+2. Communication: Is the answer structured and clear?
+3. Completeness: Did they address all parts of the question?
+
+Respond with JSON only.
+`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: prompt,
+    });
+
+    let text = response.text;
+    if (text.startsWith("```")) {
+      text = text.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+    }
+
+    return JSON.parse(text);
+  } catch (err) {
+    console.error("evaluateInterviewResponse failed:", err);
+    return {
+      technicalScore: 0,
+      communicationScore: 0,
+      overallScore: 0,
+      strengths: [],
+      improvements: [],
+      feedback: []
     };
   }
 }

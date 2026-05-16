@@ -210,7 +210,7 @@ const InterviewList = () => {
 
         localStorage.setItem('extractedSkills', JSON.stringify(extractedSkills));
         localStorage.setItem('extractedProjects', JSON.stringify(extractedProjects));
-        localStorage.setItem('interviewQuestions', JSON.stringify(questions));
+        localStorage.setItem('generatedQuestions', JSON.stringify(questions));
       } else {
         setError(data.message || 'AI extraction failed, but your resume is saved.');
       }
@@ -251,6 +251,7 @@ const InterviewList = () => {
         setProjects([]);
         localStorage.removeItem('extractedSkills');
         localStorage.removeItem('extractedProjects');
+        localStorage.removeItem('generatedQuestions');
 
         // Clear resumeUrl from localStorage user
         try {

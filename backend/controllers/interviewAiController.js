@@ -3,10 +3,60 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { PDFParse } from "pdf-parse";
 import User from "../models/User.js";
+import InterviewResult from "../models/InterviewResult.js";
 import {
   extractResumeData,
   generateInterviewQuestions,
+  evaluateInterviewResponse,
 } from "../services/geminiService.js";
+
+/**
+ * @desc    Evaluate interview transcript and save results.
+ * @route   POST /api/interview-ai/submit
+ * @access  Private
+ */
+export const submitInterview = async (req, res) => {
+  try {
+    const { questions, answers } = req.body;
+    const userId = req.user._id;
+
+    if (!questions || !answers || questions.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Questions and answers are required.",
+      });
+    }
+
+    // 1. Evaluate via Gemini
+    const evaluation = await evaluateInterviewResponse({ questions, answers });
+
+    // 2. Save to database
+    const result = new InterviewResult({
+      user: userId,
+      questions,
+      answers,
+      technicalScore: evaluation.technicalScore,
+      communicationScore: evaluation.communicationScore,
+      overallScore: evaluation.overallScore,
+      strengths: evaluation.strengths,
+      improvements: evaluation.improvements,
+    });
+
+    await result.save();
+
+    return res.status(200).json({
+      success: true,
+      resultId: result._id,
+      evaluation,
+    });
+  } catch (error) {
+    console.error("submitInterview Error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -164,6 +214,10 @@ export const regenerateInterviewQuestions = async (req, res) => {
         message: "AI service failed to generate questions. Please try again.",
       });
     }
+
+    // Save the new questions to the user profile
+    user.generatedQuestions = questions;
+    await user.save();
 
     return res.status(200).json({
       success: true,

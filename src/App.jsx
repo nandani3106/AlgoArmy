@@ -94,17 +94,16 @@ function App() {
         <Route path="/oa/:id/submitted" element={<OASubmitted />} />
         <Route path="/results/oa/:id" element={<OAReport />} />
         <Route path="/oa/:id/report" element={<OAReport />} />
+
         {/* AI Interview Module */}
         <Route path="/interviews" element={<InterviewList />} />
-        <Route
-          path="/interviews/instructions"
-          element={<InterviewInstructions />}
-        />
+        {/* Support both with and without ID for compatibility */}
+        <Route path="/interviews/instructions" element={<InterviewInstructions />} />
+        <Route path="/interviews/:id/instructions" element={<InterviewInstructions />} />
         <Route path="/interviews/room" element={<InterviewRoom />} />
-        <Route
-          path="/interviews/completed"
-          element={<InterviewCompleted />}
-        />
+        <Route path="/interviews/:id/room" element={<InterviewRoom />} />
+        <Route path="/interviews/completed" element={<InterviewCompleted />} />
+        
         <Route
           path="/results/interview/:id"
           element={<InterviewReport />}

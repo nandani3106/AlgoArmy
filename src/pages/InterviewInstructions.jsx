@@ -1,9 +1,13 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import MainLayout from '../components/MainLayout';
 import DashboardCard from '../components/DashboardCard';
 import GradientButton from '../components/GradientButton';
-import { ChevronLeft, Camera, Mic, Wifi, Volume2, Shield, Brain, Target, MessageSquare, Zap, Briefcase } from 'lucide-react';
+import { 
+  ChevronLeft, Camera, Mic, Wifi, Volume2, Shield, 
+  Brain, Target, MessageSquare, Zap, Briefcase, Loader2
+} from 'lucide-react';
+import { toast } from 'sonner';
 
 const CRITERIA = [
   { icon: Brain, label: 'Technical Knowledge', desc: 'DSA, system design, and core concepts' },
@@ -16,34 +20,74 @@ const API_BASE = 'http://localhost:5000';
 
 const InterviewInstructions = () => {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const [preparing, setPreparing] = useState(true);
 
   React.useEffect(() => {
-    const syncData = async () => {
+    const prepareSession = async () => {
       const token = localStorage.getItem('token');
-      if (!token) return;
+      if (!token) {
+        navigate('/login');
+        return;
+      }
 
       try {
-        // Fetch latest user profile to get extracted skills/projects
-        const res = await fetch(`${API_BASE}/api/profile`, {
+        setPreparing(true);
+        // 1. Trigger fresh question regeneration for this session
+        // This ensures the user gets DIFFERENT questions every time they start
+        const regenRes = await fetch(`${API_BASE}/api/interview-ai/regenerate`, {
+          method: 'POST',
           headers: { Authorization: `Bearer ${token}` }
         });
-        const data = await res.json();
+        const regenData = await regenRes.json();
 
-        if (data.success && data.user) {
-          const skills = data.user.skills || [];
-          const projects = data.user.projects || [];
-          
-          // Requirement: Store in localStorage
-          localStorage.setItem("extractedSkills", JSON.stringify(skills));
-          localStorage.setItem("extractedProjects", JSON.stringify(projects));
+        if (regenData.success) {
+          localStorage.setItem("generatedQuestions", JSON.stringify(regenData.questions));
+        }
+
+        // 2. Sync profile data (skills/projects)
+        const profileRes = await fetch(`${API_BASE}/api/profile`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const profileData = await profileRes.json();
+
+        if (profileData.success && profileData.user) {
+          localStorage.setItem("extractedSkills", JSON.stringify(profileData.user.skills || []));
+          localStorage.setItem("extractedProjects", JSON.stringify(profileData.user.projects || []));
         }
       } catch (err) {
-        console.error('Failed to sync extraction data:', err);
+        console.error('Session preparation failed:', err);
+        toast.error("Failed to prepare interview session. Please try again.");
+      } finally {
+        setPreparing(false);
       }
     };
 
-    syncData();
-  }, []);
+    prepareSession();
+  }, [navigate]);
+
+  const handleStartInterview = () => {
+    if (id && id !== 'instructions') {
+      navigate(`/interviews/${id}/room`);
+    } else {
+      navigate('/interviews/room');
+    }
+  };
+
+  if (preparing) return (
+    <MainLayout>
+      <div className="h-[60vh] flex flex-col items-center justify-center gap-6">
+        <div className="relative">
+          <div className="w-20 h-20 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
+          <Brain className="absolute inset-0 m-auto text-orange-500" size={32} />
+        </div>
+        <div className="text-center space-y-2">
+          <h2 className="text-xl font-black text-[#0B1B3B] uppercase tracking-widest">Preparing Your Session</h2>
+          <p className="text-sm text-slate-500 font-medium">AI is generating a unique set of progressive questions for you...</p>
+        </div>
+      </div>
+    </MainLayout>
+  );
 
   return (
     <MainLayout>
@@ -53,12 +97,12 @@ const InterviewInstructions = () => {
         <div className="space-y-2">
           <button onClick={() => navigate('/interviews')} className="flex items-center gap-2 text-slate-500 hover:text-[#0B1B3B] font-bold transition-colors group">
             <ChevronLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
-            Back to Resume Upload
+            Back to Interviews
           </button>
           <h1 className="text-3xl md:text-4xl font-black text-[#0B1B3B] tracking-tight">
             Before You Begin
           </h1>
-          <p className="text-slate-500 font-medium">Make sure everything is set up for the best experience.</p>
+          <p className="text-slate-500 font-medium">Your customized interview session is ready.</p>
         </div>
 
         {/* Readiness Checks */}
@@ -124,7 +168,10 @@ const InterviewInstructions = () => {
           <GradientButton variant="outline" className="!w-auto !px-10" onClick={() => navigate('/interviews')}>
             <ChevronLeft size={18} /> Go Back
           </GradientButton>
-          <GradientButton className="!w-auto !px-16 !py-5 !text-base" onClick={() => navigate('/interviews/room')}>
+          <GradientButton
+            className="!w-auto !px-16 !py-5 !text-base"
+            onClick={handleStartInterview}
+          >
             Start Interview
           </GradientButton>
         </div>
