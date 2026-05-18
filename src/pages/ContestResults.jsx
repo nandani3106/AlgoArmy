@@ -33,7 +33,7 @@ const ContestResults = () => {
   }, [id, navigate]);
 
   const totalScore = submissions.reduce((sum, s) => sum + s.score, 0);
-  const accepted = submissions.filter(s => s.status === 'Accepted').length;
+  const accepted = submissions.filter(s => (s.status || s.verdict) === 'Accepted').length;
   const accuracy = submissions.length > 0 ? Math.round((accepted / submissions.length) * 100) + '%' : '0%';
 
   const stats = [
@@ -94,7 +94,7 @@ const ContestResults = () => {
                         <td className="px-4 py-6 font-bold text-[#0B1B3B]">{s.problem?.title || 'Unknown'}</td>
                         <td className="px-4 py-6 text-sm text-slate-500 font-medium">{s.language}</td>
                         <td className="px-4 py-6">
-                          <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${s.status === 'Accepted' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'}`}>{s.status}</span>
+                          <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${(s.status || s.verdict) === 'Accepted' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-500'}`}>{s.status || s.verdict}</span>
                         </td>
                         <td className="px-4 py-6 font-black text-[#0B1B3B]">{s.score}</td>
                         <td className="px-4 py-6 text-sm text-slate-500 font-medium">{new Date(s.submittedAt).toLocaleString()}</td>

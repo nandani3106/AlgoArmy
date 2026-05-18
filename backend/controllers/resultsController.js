@@ -83,7 +83,7 @@ export const getAllContestResults = async (req, res) => {
       id: s._id,
       contestTitle: s.contest?.title || "Unknown Contest",
       score: s.score || 0,
-      status: s.status || "Submitted",
+      status: s.status || s.verdict || "Submitted",
       submittedAt: s.submittedAt,
     }));
 

@@ -23,7 +23,8 @@ const Contests = () => {
 
         if (data.success) {
           // Map backend data to ContestCard shape
-          const mapped = data.contests.map((c) => {
+          const contestsData = data.data || data.contests || [];
+          const mapped = contestsData.map((c) => {
             const start = new Date(c.startTime);
             return {
               id: c._id,

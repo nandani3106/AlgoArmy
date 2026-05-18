@@ -45,7 +45,7 @@ export const registerForContest = async (req, res) => {
     if (!contest) return res.status(404).json({ success: false, message: "Contest not found" });
 
     const existing = await ContestRegistration.findOne({ contest: contestId, user: userId });
-    if (existing) return res.status(400).json({ success: false, message: "Already registered" });
+    if (existing) return res.status(200).json({ success: true, message: "Already registered" });
 
     await ContestRegistration.create({ contest: contestId, user: userId });
     contest.participantsCount += 1;

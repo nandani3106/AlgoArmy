@@ -72,6 +72,13 @@ const CodingWorkspace = () => {
     }
   }, [language, questionId, getStorageKey]);
 
+  // Save code changes to localStorage
+  useEffect(() => {
+    if (questionId && questionId !== '1' && code) {
+      localStorage.setItem(getStorageKey(questionId, language), code);
+    }
+  }, [code, language, questionId, getStorageKey]);
+
   useEffect(() => {
     const timer = setInterval(() => setTimeLeft(prev => (prev > 0 ? prev - 1 : 0)), 1000);
     return () => clearInterval(timer);

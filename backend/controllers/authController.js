@@ -80,6 +80,8 @@ export const login = async (req, res) => {
       });
     }
 
+    console.log("Login attempt:", email);
+
     // Admin Credentials Check
     if (email === "admin@algoarmy.com" && password === "Admin@123") {
       const token = jwt.sign({ id: "admin", role: "admin", fullName: "Administrator", email: "admin@algoarmy.com" }, process.env.JWT_SECRET, {
