@@ -48,17 +48,29 @@ const OAWorkspace = () => {
         const token = localStorage.getItem('token');
         if (!token) { navigate('/login'); return; }
 
+        const headers = { 'Authorization': `Bearer ${token}` };
+
         const [oaRes, qRes] = await Promise.all([
-          fetch(`${API_BASE}/api/oa/${id}`),
-          fetch(`${API_BASE}/api/oa/${id}/questions`)
+          fetch(`${API_BASE}/api/oa/${id}`, { headers }),
+          fetch(`${API_BASE}/api/oa/${id}/questions`, { headers })
         ]);
         
         const oaData = await oaRes.json();
         const qData = await qRes.json();
 
         if (oaData.success) {
-          setOa(oaData.data);
-          setTimeLeft((oaData.data.durationMinutes || 45) * 60);
+          const test = oaData.data;
+          
+          // Double check if live
+          const now = new Date();
+          if (now < new Date(test.startDate) || now > new Date(test.endDate)) {
+            toast.error("This assessment is not currently live.");
+            navigate(`/oa/${id}`);
+            return;
+          }
+
+          setOa(test);
+          setTimeLeft((test.durationMinutes || 45) * 60);
         }
 
         if (qData.success) {
@@ -74,8 +86,13 @@ const OAWorkspace = () => {
             }
           });
           setAnswers(initialAnswers);
+        } else {
+          toast.error(qData.message || "Failed to load questions");
         }
-      } catch (err) { console.error(err); }
+      } catch (err) { 
+        console.error(err); 
+        toast.error("Failed to initialize workspace");
+      }
       finally { setLoading(false); }
     };
     fetchData();
@@ -246,21 +263,30 @@ const OAWorkspace = () => {
                 <div className="flex items-center gap-4">
                    <span className="px-3 py-1 rounded-full bg-[#0B1B3B] text-white text-[10px] font-black uppercase tracking-widest">Question {currentIdx + 1}</span>
                    <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest">{currentQ.type}</span>
+                   {currentQ.difficulty && (
+                     <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                       currentQ.difficulty === 'Easy' ? 'bg-green-100 text-green-600' : 
+                       currentQ.difficulty === 'Medium' ? 'bg-orange-100 text-orange-600' : 'bg-red-100 text-red-600'
+                     }`}>{currentQ.difficulty}</span>
+                   )}
                 </div>
                 {currentQ.type === 'coding' && (
                   <div className="flex items-center gap-3">
                     <select 
                       value={currentAns.language} 
                       onChange={(e) => handleAnswer(STARTER_TEMPLATES[e.target.value], e.target.value)} 
-                      className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-widest outline-none"
+                      className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer"
                     >
                       <option value="javascript">JavaScript</option>
                       <option value="python">Python</option>
                       <option value="cpp">C++</option>
                       <option value="java">Java</option>
                     </select>
-                    <button onClick={handleRun} disabled={isRunning} className="px-4 py-1.5 bg-[#0B1B3B] text-white rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-800 transition-all">
-                      <Play size={12} fill="currentColor" /> {isRunning ? 'Running...' : 'Run'}
+                    <button onClick={handleRun} disabled={isRunning} className="px-4 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-200 transition-all">
+                      <Play size={12} fill="currentColor" /> Run
+                    </button>
+                    <button onClick={handleQuestionSubmit} disabled={isRunning} className="px-4 py-1.5 bg-green-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-green-700 transition-all shadow-lg shadow-green-900/10">
+                      <Zap size={12} fill="currentColor" /> Submit
                     </button>
                   </div>
                 )}
@@ -270,22 +296,36 @@ const OAWorkspace = () => {
                 {currentQ.type === 'coding' ? (
                   <div className="h-full flex overflow-hidden">
                     <div className="w-[35%] bg-white border-r border-slate-200 p-8 overflow-y-auto custom-scrollbar">
-                      <h2 className="text-xl font-black text-[#0B1B3B] mb-6">{currentQ.title}</h2>
+                      <div className="flex items-start justify-between mb-6">
+                        <h2 className="text-xl font-black text-[#0B1B3B] leading-tight">{currentQ.title}</h2>
+                        {currentQ.leetcodeLink && (
+                          <a 
+                            href={currentQ.leetcodeLink} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="p-2 bg-slate-50 text-slate-400 hover:text-orange-500 rounded-lg transition-all"
+                            title="View on LeetCode"
+                          >
+                            <Layout size={18} />
+                          </a>
+                        )}
+                      </div>
                       <div className="prose prose-slate max-w-none">
                         <div className="text-slate-600 font-medium leading-relaxed whitespace-pre-wrap">{currentQ.statement}</div>
                       </div>
-                      {currentQ.timeLimit && (
-                        <div className="mt-8 pt-8 border-t border-slate-100 grid grid-cols-2 gap-4">
-                           <div>
-                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Time Limit</p>
-                              <p className="text-xs font-bold text-[#0B1B3B]">{currentQ.timeLimit}s</p>
-                           </div>
-                           <div>
-                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Memory Limit</p>
-                              <p className="text-xs font-bold text-[#0B1B3B]">{currentQ.memoryLimit}MB</p>
-                           </div>
-                        </div>
-                      )}
+                      <div className="mt-8 pt-8 border-t border-slate-100">
+                         <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Constraints & Rules</h4>
+                         <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                               <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Time Limit</p>
+                               <p className="text-xs font-bold text-[#0B1B3B]">{currentQ.timeLimit}s</p>
+                            </div>
+                            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                               <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Memory Limit</p>
+                               <p className="text-xs font-bold text-[#0B1B3B]">{currentQ.memoryLimit}MB</p>
+                            </div>
+                         </div>
+                      </div>
                     </div>
                     <div className="flex-1 flex flex-col bg-[#1e1e1e]">
                       <div className="flex-1 overflow-hidden relative">

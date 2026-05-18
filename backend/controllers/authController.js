@@ -80,6 +80,24 @@ export const login = async (req, res) => {
       });
     }
 
+    // Admin Credentials Check
+    if (email === "admin@algoarmy.com" && password === "Admin@123") {
+      const token = jwt.sign({ id: "admin", role: "admin", fullName: "Administrator", email: "admin@algoarmy.com" }, process.env.JWT_SECRET, {
+        expiresIn: "7d",
+      });
+
+      return res.status(200).json({
+        success: true,
+        token,
+        user: {
+          id: "admin",
+          fullName: "Administrator",
+          email: "admin@algoarmy.com",
+          role: "admin",
+        },
+      });
+    }
+
     // Find user and include password field
     const user = await User.findOne({ email }).select("+password");
     if (!user) {
@@ -143,6 +161,13 @@ export const loginUser = login;
 // @access  Private
 export const getMe = async (req, res) => {
   try {
+    if (req.user.id === "admin" || req.user._id === "admin") {
+      return res.status(200).json({
+        success: true,
+        user: req.user,
+      });
+    }
+
     const user = await User.findById(req.user._id);
 
     if (!user) {

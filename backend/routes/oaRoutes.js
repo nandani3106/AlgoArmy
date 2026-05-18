@@ -7,6 +7,7 @@ import {
   getOAReport,
   runOACode,
   saveOAProgress,
+  submitOAQuestion,
 } from "../controllers/oaController.js";
 import protect from "../middleware/authMiddleware.js";
 
@@ -17,6 +18,7 @@ router.get("/:id", getOATestById);
 router.get("/:id/questions", getOAQuestions);
 router.post("/:id/run", protect, runOACode);
 router.post("/:id/save-progress", protect, saveOAProgress);
+router.post("/:id/submit-question", protect, submitOAQuestion);
 router.post("/:id/submit", protect, submitOATest);
 router.get("/:id/report", protect, getOAReport);
 

@@ -10,7 +10,6 @@ const API_BASE = 'http://localhost:5000';
 
 const Signup = () => {
   const navigate = useNavigate();
-  const [role, setRole] = useState('Candidate');
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -72,7 +71,7 @@ const Signup = () => {
           fullName: formData.fullName,
           email: formData.email,
           password: formData.password,
-          role: role.toLowerCase(),
+          role: 'candidate',
         }),
       });
 
@@ -108,23 +107,6 @@ const Signup = () => {
         subtitle="Join AlgoArmy and start your journey"
       >
         <form onSubmit={handleSubmit} className="space-y-1">
-          {/* Role Selection */}
-          <div className="flex p-1 bg-slate-50 rounded-xl mb-4 border border-orange-100/50 shadow-sm">
-            {['Candidate', 'Admin'].map((r) => (
-              <button
-                key={r}
-                type="button"
-                onClick={() => { setRole(r); setError(''); }}
-                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all duration-300 ${role === r
-                    ? 'bg-[#0B1B3B] text-white shadow-md'
-                    : 'text-slate-400 hover:text-slate-600'
-                  }`}
-              >
-                {r}
-              </button>
-            ))}
-          </div>
-
           <CustomInput
             icon={User}
             label="Full Name"

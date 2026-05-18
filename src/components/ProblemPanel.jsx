@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, Star, Tag, AlertCircle, FileText, Info } from 'lucide-react';
+import { BookOpen, Star, Tag, AlertCircle, FileText, Info, Layout } from 'lucide-react';
 
 const ProblemPanel = ({ problem }) => {
   if (!problem) return (
@@ -26,9 +26,22 @@ const ProblemPanel = ({ problem }) => {
         </span>
       </div>
 
-      <h1 className="text-3xl font-black text-[#0B1B3B] mb-8 leading-tight">
-        {problem.title}
-      </h1>
+      <div className="flex items-start justify-between mb-8">
+        <h1 className="text-3xl font-black text-[#0B1B3B] leading-tight">
+          {problem.title}
+        </h1>
+        {problem.leetcodeLink && (
+          <a 
+            href={problem.leetcodeLink} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="p-3 bg-slate-50 text-slate-400 hover:text-orange-500 rounded-xl transition-all shadow-sm border border-slate-100 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest"
+            title="View on LeetCode"
+          >
+            <Layout size={16} /> LeetCode
+          </a>
+        )}
+      </div>
 
       <div className="space-y-10 pb-12">
         {/* Description / Statement */}

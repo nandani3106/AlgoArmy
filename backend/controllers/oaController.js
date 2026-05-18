@@ -1,5 +1,6 @@
 import OATest from "../models/OATest.js";
 import OAQuestion from "../models/OAQuestion.js";
+import Problem from "../models/Problem.js";
 import OASubmission from "../models/OASubmission.js";
 import { evaluateCode } from "../services/judgeService.js";
 
@@ -26,31 +27,75 @@ export const getOATestById = async (req, res) => {
   }
 };
 
-// @desc    Get OA questions for a test
+// @desc    Get OA questions for a test (Aggregated from OATest model)
 // @route   GET /api/oa/:id/questions
 export const getOAQuestions = async (req, res) => {
   try {
-    const questions = await OAQuestion.find({ oaTest: req.params.id }).sort({ order: 1 });
-    res.status(200).json({ success: true, data: questions });
+    const test = await OATest.findById(req.params.id).populate("selectedCodingQuestions");
+    if (!test) return res.status(404).json({ success: false, message: "Test not found" });
+
+    const aggregatedQuestions = [];
+
+    // Add MCQs
+    if (test.mcqs && test.mcqs.length > 0) {
+      test.mcqs.forEach((mcq, index) => {
+        aggregatedQuestions.push({
+          _id: `mcq-${index}`, // Temporary ID if not in DB
+          type: "mcq",
+          title: mcq.question,
+          statement: mcq.question,
+          options: mcq.options,
+          correctAnswer: mcq.correctOption,
+          points: mcq.marks || 10,
+          order: index,
+        });
+      });
+    }
+
+    // Add Coding Questions
+    if (test.selectedCodingQuestions && test.selectedCodingQuestions.length > 0) {
+      test.selectedCodingQuestions.forEach((prob, index) => {
+        aggregatedQuestions.push({
+          _id: prob._id,
+          type: "coding",
+          title: prob.title,
+          statement: prob.description,
+          leetcodeLink: prob.leetcodeLink, // Added this
+          difficulty: prob.difficulty,
+          points: prob.difficulty === "Easy" ? 20 : prob.difficulty === "Medium" ? 50 : 100,
+          timeLimit: prob.timeLimit || 2,
+          memoryLimit: prob.memoryLimit || 256,
+          sampleTestCases: prob.sampleTestCases || prob.testCases?.slice(0, 2) || [],
+          hiddenTestCases: prob.hiddenTestCases || prob.testCases || [],
+          order: (test.mcqs?.length || 0) + index,
+        });
+      });
+    }
+
+    res.status(200).json({ success: true, data: aggregatedQuestions });
   } catch (error) {
+    console.error("Get OA Questions Error:", error.message);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
-// @desc    Run Code for an OA coding question (Sandboxed)
+// @desc    Run Code for an OA coding question (Sample Test Cases Only)
 // @route   POST /api/oa/:id/run
 export const runOACode = async (req, res) => {
   try {
     const { questionId, code, language, customInput } = req.body;
-    const question = await OAQuestion.findById(questionId);
+    
+    let question = await OAQuestion.findById(questionId);
+    if (!question) question = await Problem.findById(questionId);
+
     if (!question) return res.status(404).json({ success: false, message: "Question not found" });
 
     let testCases = [];
     if (customInput) {
       testCases = [{ input: customInput, output: "", isHidden: false }];
     } else {
-      // Use sample test cases for "Run Code"
-      testCases = question.sampleTestCases.map(tc => ({ 
+      const samples = question.sampleTestCases || question.testCases?.slice(0, 2) || [];
+      testCases = samples.map(tc => ({ 
         input: tc.input, 
         output: tc.output, 
         isHidden: false 
@@ -67,7 +112,43 @@ export const runOACode = async (req, res) => {
 
     res.status(200).json({ success: true, ...evaluation });
   } catch (error) {
+    console.error("Run OA Code Error:", error.message);
     res.status(500).json({ success: false, message: "Execution error" });
+  }
+};
+
+// @desc    Submit a single OA question for full evaluation (All Test Cases)
+// @route   POST /api/oa/:id/submit-question
+export const submitOAQuestion = async (req, res) => {
+  try {
+    const { questionId, code, language } = req.body;
+    
+    let question = await OAQuestion.findById(questionId);
+    if (!question) question = await Problem.findById(questionId);
+
+    if (!question) return res.status(404).json({ success: false, message: "Question not found" });
+
+    // Combine sample and hidden test cases for full evaluation
+    const sampleTCs = question.sampleTestCases || question.testCases?.slice(0, 2) || [];
+    const hiddenTCs = question.hiddenTestCases || question.testCases || [];
+
+    const allTestCases = [
+      ...sampleTCs.map(tc => ({ input: tc.input, output: tc.output, isHidden: false })),
+      ...hiddenTCs.map(tc => ({ input: tc.input, output: tc.output, isHidden: true }))
+    ];
+
+    const evaluation = await evaluateCode(
+      code, 
+      language, 
+      allTestCases, 
+      question.timeLimit || 2, 
+      question.memoryLimit || 256
+    );
+
+    res.status(200).json({ success: true, ...evaluation });
+  } catch (error) {
+    console.error("Submit Question Error:", error.message);
+    res.status(500).json({ success: false, message: "Evaluation error" });
   }
 };
 
@@ -79,7 +160,29 @@ export const submitOATest = async (req, res) => {
     const { answers: userAnswers } = req.body;
     const userId = req.user._id;
 
-    const questions = await OAQuestion.find({ oaTest: oaTestId });
+    // Fetch the test to get aggregated questions
+    const test = await OATest.findById(oaTestId).populate("selectedCodingQuestions");
+    if (!test) return res.status(404).json({ success: false, message: "Test not found" });
+
+    const mcqs = (test.mcqs || []).map((m, i) => ({
+      _id: `mcq-${i}`,
+      type: "mcq",
+      correctAnswer: m.correctOption,
+      points: m.marks || 10
+    }));
+
+    const coding = (test.selectedCodingQuestions || []).map(p => ({
+      _id: p._id.toString(),
+      type: "coding",
+      points: p.difficulty === "Easy" ? 20 : p.difficulty === "Medium" ? 50 : 100,
+      timeLimit: p.timeLimit || 2,
+      memoryLimit: p.memoryLimit || 256,
+      sampleTestCases: p.sampleTestCases || p.testCases?.slice(0, 2) || [],
+      hiddenTestCases: p.hiddenTestCases || p.testCases || []
+    }));
+
+    const allQuestions = [...mcqs, ...coding];
+    
     let totalScore = 0;
     let totalPossible = 0;
     let correctMCQs = 0;
@@ -88,7 +191,7 @@ export const submitOATest = async (req, res) => {
 
     const processedAnswers = [];
 
-    for (const q of questions) {
+    for (const q of allQuestions) {
       totalPossible += q.points;
       const userAns = userAnswers.find((ua) => ua.questionId === q._id.toString());
 
@@ -117,7 +220,6 @@ export const submitOATest = async (req, res) => {
         const submittedCode = userAns.answer || "";
         const language = userAns.language || "javascript";
 
-        // Combine sample and hidden test cases for final submission
         const allTestCases = [
           ...q.sampleTestCases.map(tc => ({ input: tc.input, output: tc.output, isHidden: false })),
           ...q.hiddenTestCases.map(tc => ({ input: tc.input, output: tc.output, isHidden: true }))
@@ -153,7 +255,7 @@ export const submitOATest = async (req, res) => {
       }
     }
 
-    const totalQuestions = questions.length;
+    const totalQuestions = allQuestions.length;
     const percentage = totalPossible > 0 ? ((totalScore / totalPossible) * 100).toFixed(2) : 0;
 
     const submission = await OASubmission.findOneAndUpdate(

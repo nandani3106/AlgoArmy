@@ -23,6 +23,17 @@ const protect = async (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
+    if (decoded.id === "admin") {
+      req.user = {
+        _id: "admin",
+        id: "admin",
+        fullName: "Administrator",
+        email: "admin@algoarmy.com",
+        role: "admin",
+      };
+      return next();
+    }
+
     // Find user and attach to request
     const user = await User.findById(decoded.id);
     if (!user) {

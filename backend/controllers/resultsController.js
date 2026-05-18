@@ -76,6 +76,8 @@ export const getAllContestResults = async (req, res) => {
       .populate("contest", "title")
       .sort({ submittedAt: -1 });
 
+    console.log("Contest submissions found:", submissions.length);
+
     const formatted = submissions.map((s) => ({
       _id: s._id,
       id: s._id,

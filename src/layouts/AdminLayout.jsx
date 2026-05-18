@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, Navigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import {
   LayoutDashboard,
@@ -16,6 +16,22 @@ import {
 
 export default function AdminLayout() {
   const { isDark, toggleTheme } = useTheme();
+
+  const userStr = localStorage.getItem('user');
+  let user = null;
+  try {
+    user = userStr ? JSON.parse(userStr) : null;
+  } catch (e) {}
+
+  if (!user || user.role !== 'admin') {
+    return <Navigate to="/login" replace />;
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/login';
+  };
 
   const navItems = [
     {
@@ -136,7 +152,7 @@ export default function AdminLayout() {
             </h3>
 
             <button 
-              onClick={() => window.location.href = '/login'}
+              onClick={handleLogout}
               className="mt-4 w-full bg-[#F59E0B] text-white py-3 rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition"
             >
               <LogOut size={16} />

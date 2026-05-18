@@ -12,7 +12,7 @@ const QuestionNavigator = ({ questions, currentIdx, onSelect, answers = {} }) =>
       <div className="grid grid-cols-5 gap-3">
         {questions.map((q, idx) => {
           const isCurrent = currentIdx === idx;
-          const isAnswered = !!answers[idx];
+          const isAnswered = !!answers[q._id];
           
           return (
             <button

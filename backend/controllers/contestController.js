@@ -11,7 +11,7 @@ import { evaluateCode } from "../services/judgeService.js";
 export const getAllContests = async (req, res) => {
   try {
     const contests = await Contest.find().populate("selectedProblems").sort({ startTime: 1 });
-    res.status(200).json({ success: true, count: contests.length, contests });
+    res.status(200).json({ success: true, data: contests });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server error" });
   }
@@ -252,10 +252,13 @@ export const getContestResults = async (req, res) => {
 // @access  Private/Admin
 export const createContest = async (req, res) => {
   try {
-    const contest = await Contest.create(req.body);
-    res.status(201).json(contest);
+    const contest = await Contest.create({
+      ...req.body,
+      createdBy: req.user._id,
+    });
+    res.status(201).json({ success: true, data: contest });
   } catch (err) {
-    res.status(500).json({ message: "Error creating contest" });
+    res.status(500).json({ success: false, message: "Error creating contest" });
   }
 };
 
@@ -269,9 +272,9 @@ export const updateContest = async (req, res) => {
       req.body,
       { new: true }
     );
-    res.json(contest);
+    res.json({ success: true, data: contest });
   } catch (err) {
-    res.status(500).json({ message: "Error updating contest" });
+    res.status(500).json({ success: false, message: "Error updating contest" });
   }
 };
 
@@ -281,8 +284,8 @@ export const updateContest = async (req, res) => {
 export const deleteContest = async (req, res) => {
   try {
     await Contest.findByIdAndDelete(req.params.id);
-    res.json({ message: "Contest deleted" });
+    res.json({ success: true, message: "Contest deleted" });
   } catch (err) {
-    res.status(500).json({ message: "Error deleting contest" });
+    res.status(500).json({ success: false, message: "Error deleting contest" });
   }
 };

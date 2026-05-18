@@ -71,6 +71,33 @@ const OADetails = () => {
     );
   }
 
+  const now = new Date();
+  const start = new Date(oa.startDate);
+  const end = new Date(oa.endDate);
+  const isLive = now >= start && now <= end;
+  const isUpcoming = now < start;
+  const isEnded = now > end;
+
+  let statusText = "Live";
+  let statusColor = "bg-green-50 text-green-600";
+  if (isUpcoming) {
+    statusText = "Upcoming";
+    statusColor = "bg-amber-50 text-amber-600";
+  } else if (isEnded) {
+    statusText = "Ended";
+    statusColor = "bg-red-50 text-red-600";
+  }
+
+  const formatDateTime = (date) => {
+    return new Date(date).toLocaleString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
   return (
     <MainLayout>
       <div className="space-y-8 pb-12">
@@ -91,19 +118,29 @@ const OADetails = () => {
                 <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-50 border border-slate-100">
                   <Building2 size={14} className="text-orange-500" />
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#0B1B3B]">
-                    {oa.company || 'TechNova Solutions'}
+                    {oa.company || 'Recruitment Team'}
                   </span>
                 </div>
-                <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] ${
-                  oa.status === 'live' ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-orange-600'
-                }`}>
-                  {oa.status}
+                <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] ${statusColor}`}>
+                  {statusText}
                 </span>
               </div>
               
               <h1 className="text-3xl md:text-5xl font-black text-[#0B1B3B] mb-6 leading-tight">
                 {oa.title}
               </h1>
+
+              <div className="flex flex-col gap-2 mb-8 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                 <div className="flex items-center gap-3 text-sm font-bold text-[#0B1B3B]">
+                    <Calendar size={18} className="text-orange-500" />
+                    <span>Starts: {formatDateTime(oa.startDate)}</span>
+                 </div>
+                 <div className="flex items-center gap-3 text-sm font-bold text-[#0B1B3B]">
+                    <Clock size={18} className="text-orange-500" />
+                    <span>Ends: {formatDateTime(oa.endDate)}</span>
+                 </div>
+              </div>
+
               <p className="text-slate-500 text-lg leading-relaxed mb-10">
                 {oa.description}
               </p>
@@ -115,7 +152,7 @@ const OADetails = () => {
                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Questions</p>
-                  <p className="font-bold text-[#0B1B3B]">{oa.totalQuestions || 'Multiple'}</p>
+                  <p className="font-bold text-[#0B1B3B]">{oa.selectedCodingQuestions?.length + (oa.mcqs?.length || 0)}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Difficulty</p>
@@ -153,15 +190,19 @@ const OADetails = () => {
                 </div>
                 <h3 className="text-2xl font-black mb-2">Proctored Assessment</h3>
                 <p className="text-slate-400 text-sm mb-8 leading-relaxed">
-                  Before you begin, we need to verify your system and permissions.
+                  {isUpcoming 
+                    ? "This assessment is not yet available. Please return at the scheduled start time." 
+                    : isEnded 
+                    ? "This assessment has ended. You can no longer start it." 
+                    : "Before you begin, we need to verify your system and permissions."}
                 </p>
                 <div className="w-full space-y-3">
                   <GradientButton 
-                    className="w-full !py-4 shadow-xl shadow-orange-500/20" 
-                    onClick={() => navigate(`/oa/${id}/permissions`)}
-                    disabled={oa.status !== 'live'}
+                    className={`w-full !py-4 shadow-xl ${!isLive ? 'opacity-50 grayscale' : 'shadow-orange-500/20'}`} 
+                    onClick={() => isLive && navigate(`/oa/${id}/permissions`)}
+                    disabled={!isLive}
                   >
-                    {oa.status === 'live' ? 'Check Permissions' : 'Test Not Live'}
+                    {isUpcoming ? 'Starting Soon' : isEnded ? 'Assessment Ended' : 'Check Permissions'}
                   </GradientButton>
                   <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em] mt-4">
                     Est. Duration: {oa.durationMinutes} Mins

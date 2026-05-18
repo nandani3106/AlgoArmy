@@ -18,6 +18,14 @@ const oaTestSchema = new mongoose.Schema(
       type: Number,
       required: [true, "Please provide duration in minutes"],
     },
+    startDate: {
+      type: Date,
+      required: [true, "Please provide a start date and time"],
+    },
+    endDate: {
+      type: Date,
+      required: [true, "Please provide an end date and time"],
+    },
     totalQuestions: {
       type: Number,
       default: 0,

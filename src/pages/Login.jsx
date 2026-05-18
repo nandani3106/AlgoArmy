@@ -26,7 +26,7 @@ const Login = () => {
     if (token && user) {
       const parsed = JSON.parse(user);
       if (parsed.role === 'admin') {
-        navigate('/admin');
+        navigate('/admin/dashboard');
       } else {
         navigate('/dashboard');
       }
@@ -86,7 +86,7 @@ const Login = () => {
 
       // Redirect based on role
       if (data.user.role === 'admin') {
-        navigate('/admin');
+        navigate('/admin/dashboard');
       } else {
         navigate('/dashboard');
       }
