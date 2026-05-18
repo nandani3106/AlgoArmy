@@ -116,8 +116,17 @@ const ResultDetails = () => {
   // 🏆 Contest Layout
   const renderContestReport = () => {
     const submissions = Array.isArray(data) ? data : [];
-    const totalScore = submissions.reduce((acc, curr) => acc + (curr.score || 0), 0);
-    const contestTitle = submissions[0]?.problem?.contest?.title || "Contest Performance";
+    
+    // Group by problem ID and sum the maximum score per problem to avoid duplicate correct scores
+    const problemScores = {};
+    submissions.forEach(s => {
+      if (s.problem) {
+        const pId = s.problem._id || s.problem;
+        problemScores[pId] = Math.max(problemScores[pId] || 0, s.score || 0);
+      }
+    });
+    const totalScore = Object.values(problemScores).reduce((sum, val) => sum + val, 0);
+    const contestTitle = submissions[0]?.contest?.title || submissions[0]?.problem?.contest?.title || "Contest Performance";
 
     return (
       <div className="space-y-8">
@@ -132,6 +141,7 @@ const ResultDetails = () => {
           <div className="space-y-6">
             {submissions.map((sub, idx) => {
               const isExpanded = expandedSub === idx;
+              const subVerdict = sub.verdict || sub.status || 'Submitted';
               return (
                 <div key={idx} className="bg-slate-50 rounded-3xl border border-slate-100 overflow-hidden transition-all">
                   <button 
@@ -140,7 +150,7 @@ const ResultDetails = () => {
                   >
                     <div className="flex items-center gap-6">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${
-                        sub.status === 'Accepted' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                        subVerdict === 'Accepted' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                       }`}>
                         {String.fromCharCode(65 + (sub.problem?.order || idx))}
                       </div>
@@ -153,8 +163,8 @@ const ResultDetails = () => {
                     </div>
                     <div className="flex items-center gap-4">
                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase border ${
-                         sub.status === 'Accepted' ? 'bg-green-50 text-green-600 border-green-100' : 'bg-red-50 text-red-600 border-red-100'
-                       }`}>{sub.status}</span>
+                         subVerdict === 'Accepted' ? 'bg-green-50 text-green-600 border-green-100' : 'bg-red-50 text-red-600 border-red-100'
+                       }`}>{subVerdict}</span>
                        {isExpanded ? <ChevronUp size={20} className="text-slate-400" /> : <ChevronDown size={20} className="text-slate-400" />}
                     </div>
                   </button>
@@ -221,10 +231,10 @@ const ResultDetails = () => {
   const renderOAReport = () => (
     <div className="space-y-8">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-        <ScoreCard title="Overall Score" value={`${data.score} pts`} subtitle="Evaluated" icon={Target} color="navy" />
-        <ScoreCard title="Company" value={data.company} subtitle="Official Assessment" icon={Building2} color="orange" />
-        <ScoreCard title="Accuracy" value={`${data.percentage}%`} subtitle="High Precision" icon={Zap} color="blue" />
-        <ScoreCard title="Submitted" value={new Date(data.submittedAt).toLocaleDateString()} subtitle="System Logged" icon={Clock} color="green" />
+        <ScoreCard title="Overall Score" value={`${data?.score || 0} pts`} subtitle="Evaluated" icon={Target} color="navy" />
+        <ScoreCard title="Company" value={data?.company || 'N/A'} subtitle="Official Assessment" icon={Building2} color="orange" />
+        <ScoreCard title="Accuracy" value={`${data?.percentage || 0}%`} subtitle="High Precision" icon={Zap} color="blue" />
+        <ScoreCard title="Submitted" value={data?.submittedAt ? new Date(data.submittedAt).toLocaleDateString() : 'N/A'} subtitle="System Logged" icon={Clock} color="green" />
       </div>
       <DashboardCard title="Performance Summary" icon={PieChart}>
           <div className="p-8 bg-slate-50 rounded-3xl border border-slate-100 text-center">
@@ -239,9 +249,9 @@ const ResultDetails = () => {
   const renderInterviewReport = () => (
     <div className="space-y-8">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-        <ScoreCard title="Technical" value={`${data.technicalScore}/10`} subtitle="Foundations" icon={Target} color="navy" />
-        <ScoreCard title="Communication" value={`${data.communicationScore}/10`} subtitle="Clarity" icon={MessageSquare} color="orange" />
-        <ScoreCard title="Overall Rating" value={`${data.overallScore}%`} subtitle="AI Analysis" icon={Award} color="green" />
+        <ScoreCard title="Technical" value={`${data.technicalScore || 0}%`} subtitle="Foundations" icon={Target} color="navy" />
+        <ScoreCard title="Communication" value={`${data.communicationScore || 0}%`} subtitle="Clarity" icon={MessageSquare} color="orange" />
+        <ScoreCard title="Overall Rating" value={`${data.overallScore || 0}%`} subtitle="AI Analysis" icon={Award} color="green" />
         <ScoreCard title="Date" value={new Date(data.createdAt).toLocaleDateString()} subtitle="Evaluated" icon={Clock} color="blue" />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -270,14 +280,50 @@ const ResultDetails = () => {
               </div>
             </div>
           </DashboardCard>
+
+          <DashboardCard title="Evaluation Feedback" icon={MessageSquare}>
+            <div className="space-y-6">
+              {(data.questions || []).map((q, idx) => (
+                <div key={idx} className="p-6 rounded-3xl bg-slate-50 border border-slate-100 text-left">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Question {idx + 1}</p>
+                  <p className="text-sm font-bold text-[#0B1B3B] mb-4">"{q?.question || q}"</p>
+                  <div className="flex gap-3 p-4 bg-white rounded-2xl border border-slate-100 mb-4">
+                     <MessageSquare size={16} className="text-blue-500 shrink-0" />
+                     <p className="text-xs text-slate-500 font-medium leading-relaxed italic">
+                        Your Answer: "{data.answers[idx] || "N/A"}"
+                     </p>
+                  </div>
+                  
+                  {data.feedback && data.feedback[idx] ? (
+                    <div className="flex flex-col gap-2 p-4 bg-orange-50/30 rounded-2xl border border-orange-100/50">
+                       <div className="flex gap-3 items-center">
+                          <Zap size={16} className="text-orange-500 shrink-0" />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-orange-600">Question Score: {data.feedback[idx].score || data.feedback[idx].rating || 0} / 10</span>
+                       </div>
+                       <p className="text-xs text-slate-700 font-bold leading-relaxed pl-7">
+                          {data.feedback[idx].feedback}
+                       </p>
+                    </div>
+                  ) : (
+                    <div className="flex gap-3 p-4 bg-orange-50/30 rounded-2xl border border-orange-100/50">
+                       <Zap size={16} className="text-orange-500 shrink-0" />
+                       <p className="text-xs text-slate-600 font-bold leading-relaxed">
+                          AI feedback integrated into overall scores and strengths.
+                       </p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </DashboardCard>
         </div>
       </div>
     </div>
   );
 
   const getReportTitle = () => {
-    if (type === 'contest') return Array.isArray(data) ? data[0]?.problem?.contest?.title : "Contest Report";
-    if (type === 'oa') return data.testTitle;
+    if (type === 'contest') return Array.isArray(data) && data.length > 0 ? (data[0]?.contest?.title || data[0]?.problem?.contest?.title || "Contest Report") : "Contest Report";
+    if (type === 'oa') return data?.testTitle || "OA Report";
     if (type === 'interview') return 'AI Technical Interview Result';
     return 'Performance Report';
   };

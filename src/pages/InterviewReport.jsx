@@ -197,20 +197,32 @@ const InterviewReport = () => {
                 {(report.questions || []).map((q, idx) => (
                   <div key={idx} className="p-6 rounded-3xl bg-slate-50 border border-slate-100">
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Question {idx + 1}</p>
-                    <p className="text-sm font-bold text-[#0B1B3B] mb-4">"{q}"</p>
+                    <p className="text-sm font-bold text-[#0B1B3B] mb-4">"{q?.question || q}"</p>
                     <div className="flex gap-3 p-4 bg-white rounded-2xl border border-slate-100 mb-4">
                        <MessageSquare size={16} className="text-blue-500 shrink-0" />
                        <p className="text-xs text-slate-500 font-medium leading-relaxed italic">
                           Your Answer: "{report.answers[idx] || "N/A"}"
                        </p>
                     </div>
-                    {/* Placeholder for question-specific AI feedback if available */}
-                    <div className="flex gap-3 p-4 bg-orange-50/30 rounded-2xl border border-orange-100/50">
-                       <Zap size={16} className="text-orange-500 shrink-0" />
-                       <p className="text-xs text-slate-600 font-bold leading-relaxed">
-                          AI feedback integrated into overall scores and strengths.
-                       </p>
-                    </div>
+                    
+                    {report.feedback && report.feedback[idx] ? (
+                      <div className="flex flex-col gap-2 p-4 bg-orange-50/30 rounded-2xl border border-orange-100/50">
+                         <div className="flex gap-3 items-center">
+                            <Zap size={16} className="text-orange-500 shrink-0 animate-pulse" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-orange-600">Question Score: {report.feedback[idx].score || report.feedback[idx].rating || 0} / 10</span>
+                         </div>
+                         <p className="text-xs text-slate-700 font-bold leading-relaxed pl-7">
+                            {report.feedback[idx].feedback}
+                         </p>
+                      </div>
+                    ) : (
+                      <div className="flex gap-3 p-4 bg-orange-50/30 rounded-2xl border border-orange-100/50">
+                         <Zap size={16} className="text-orange-500 shrink-0" />
+                         <p className="text-xs text-slate-600 font-bold leading-relaxed">
+                            AI feedback integrated into overall scores and strengths.
+                         </p>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

@@ -1,6 +1,6 @@
 import OATest from "../models/OATest.js";
 import OAQuestion from "../models/OAQuestion.js";
-import Problem from "../models/Problem.js";
+import Problem from "../models/problem.js";
 import OASubmission from "../models/OASubmission.js";
 import { evaluateCode } from "../services/judgeService.js";
 
@@ -59,15 +59,21 @@ export const getOAQuestions = async (req, res) => {
           _id: prob._id,
           type: "coding",
           title: prob.title,
-          statement: prob.description,
-          leetcodeLink: prob.leetcodeLink, // Added this
+          statement: prob.statement || prob.description,
+          leetcodeLink: prob.leetcodeUrl || prob.leetcodeLink,
           difficulty: prob.difficulty,
           points: prob.difficulty === "Easy" ? 20 : prob.difficulty === "Medium" ? 50 : 100,
           timeLimit: prob.timeLimit || 2,
           memoryLimit: prob.memoryLimit || 256,
           sampleTestCases: prob.sampleTestCases || prob.testCases?.slice(0, 2) || [],
           hiddenTestCases: prob.hiddenTestCases || prob.testCases || [],
-          order: (test.mcqs?.length || 0) + index,
+          examples: prob.examples || [],
+          constraints: prob.constraints || "",
+          inputFormat: prob.inputFormat || "",
+          outputFormat: prob.outputFormat || "",
+          sampleInput: prob.sampleInput || "",
+          sampleOutput: prob.sampleOutput || "",
+          order: (test.mcqs?.length || 0) + index + 1,
         });
       });
     }

@@ -39,7 +39,7 @@ const Results = () => {
           // Normalize and combine
           const normalized = [
             ...(contestsData.data || []).map(r => ({
-              id: r._id || r.id,
+              id: r.id || r._id,
               type: 'Contest',
               title: r.contestTitle,
               score: `${r.score} pts`,
@@ -60,7 +60,7 @@ const Results = () => {
               timestamp: new Date(r.submittedAt).getTime()
             })),
             ...(interviewsData.data || []).map(r => ({
-              id: r._id || r.id,
+              id: r.id || r._id,
               type: 'Interview',
               title: 'AI Technical Interview',
               score: `${r.overallScore}%`,
@@ -70,6 +70,9 @@ const Results = () => {
               improvements: r.improvements
             }))
           ].sort((a, b) => b.timestamp - a.timestamp);
+
+          console.log("Contest API Data:", contestsData.data);
+          console.log("Normalized Results:", normalized);
 
           setResults(normalized);
         } else {
@@ -183,8 +186,13 @@ const Results = () => {
               key={`${result.type}-${result.id}`}
               className="bg-white rounded-[2rem] p-8 shadow-xl shadow-orange-900/5 border border-orange-100/50 flex flex-col md:flex-row items-center justify-between gap-8 group hover:border-orange-500/30 transition-all cursor-pointer"
               onClick={() => {
+                console.log("Navigating to report. Type:", result.type, "ID:", result.id);
                 if (result.type === 'OA') {
                   navigate(`/oa/${result.id}/report`);
+                } else if (result.type === 'Contest') {
+                  navigate(`/results/contest/${result.id}`);
+                } else if (result.type === 'Interview') {
+                  navigate(`/results/interview/${result.id}`);
                 } else {
                   navigate(`/results/${result.type.toLowerCase()}/${result.id}`);
                 }
@@ -221,10 +229,10 @@ const Results = () => {
                   <p className="text-sm font-black text-orange-600">{result.score}</p>
                 </div>
                 <div className="ml-auto">
-                  <button className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-slate-50 border border-slate-100 text-[#0B1B3B] text-[10px] font-black uppercase tracking-widest group-hover:bg-[#0B1B3B] group-hover:text-white transition-all">
+                  <div className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-slate-50 border border-slate-100 text-[#0B1B3B] text-[10px] font-black uppercase tracking-widest group-hover:bg-[#0B1B3B] group-hover:text-white transition-all">
                     View Report
                     <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
-                  </button>
+                  </div>
                 </div>
               </div>
             </div>

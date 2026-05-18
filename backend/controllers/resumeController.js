@@ -53,7 +53,7 @@ export const uploadResume = async (req, res) => {
  */
 export const getResume = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select("resumeUrl");
+    const user = await User.findById(req.user._id).select("resumeUrl skills projects");
 
     if (!user) {
       return res.status(404).json({
@@ -65,6 +65,8 @@ export const getResume = async (req, res) => {
     return res.status(200).json({
       success: true,
       resumeUrl: user.resumeUrl || "",
+      skills: user.skills || [],
+      projects: user.projects || [],
     });
   } catch (error) {
     console.error("Get Resume Error:", error.message);

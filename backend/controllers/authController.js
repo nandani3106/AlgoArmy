@@ -84,7 +84,7 @@ export const login = async (req, res) => {
 
     // Admin Credentials Check
     if (email === "admin@algoarmy.com" && password === "Admin@123") {
-      const token = jwt.sign({ id: "admin", role: "admin", fullName: "Administrator", email: "admin@algoarmy.com" }, process.env.JWT_SECRET, {
+      const token = jwt.sign({ id: "ad11ad11ad11ad11ad11ad11", role: "admin", fullName: "Administrator", email: "admin@algoarmy.com" }, process.env.JWT_SECRET, {
         expiresIn: "7d",
       });
 
@@ -92,7 +92,8 @@ export const login = async (req, res) => {
         success: true,
         token,
         user: {
-          id: "admin",
+          id: "ad11ad11ad11ad11ad11ad11",
+          _id: "ad11ad11ad11ad11ad11ad11",
           fullName: "Administrator",
           email: "admin@algoarmy.com",
           role: "admin",
@@ -163,7 +164,7 @@ export const loginUser = login;
 // @access  Private
 export const getMe = async (req, res) => {
   try {
-    if (req.user.id === "admin" || req.user._id === "admin") {
+    if (req.user.id === "admin" || req.user._id === "admin" || req.user.id === "ad11ad11ad11ad11ad11ad11" || req.user._id === "ad11ad11ad11ad11ad11ad11") {
       return res.status(200).json({
         success: true,
         user: req.user,

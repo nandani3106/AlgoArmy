@@ -152,7 +152,13 @@ const OAReport = () => {
                               </div>
                               <div className="bg-white p-4 rounded-2xl border border-slate-100">
                                  <p className="text-[10px] font-black text-slate-400 uppercase mb-1">Complexity</p>
-                                 <p className="text-xs font-black text-[#0B1B3B] uppercase">{ans.complexityEstimate || 'O(n)'}</p>
+                                 {ans.complexityEstimate && typeof ans.complexityEstimate === 'object' ? (
+                                   <p className="text-[10px] font-black text-[#0B1B3B] uppercase tracking-wide">
+                                     T: <span className="font-mono text-orange-600 ml-0.5">{ans.complexityEstimate.time || 'O(1)'}</span> • S: <span className="font-mono text-blue-600 ml-0.5">{ans.complexityEstimate.space || 'O(1)'}</span>
+                                   </p>
+                                 ) : (
+                                   <p className="text-xs font-black text-[#0B1B3B] uppercase">{ans.complexityEstimate || 'O(n)'}</p>
+                                 )}
                               </div>
                            </div>
 

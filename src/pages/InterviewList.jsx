@@ -86,6 +86,15 @@ const InterviewList = () => {
         if (data.success && data.resumeUrl) {
           setResumeUrl(data.resumeUrl);
           setUploaded(true);
+          
+          if (data.skills && data.skills.length > 0) {
+            setSkills(data.skills);
+            localStorage.setItem('extractedSkills', JSON.stringify(data.skills));
+          }
+          if (data.projects && data.projects.length > 0) {
+            setProjects(data.projects);
+            localStorage.setItem('extractedProjects', JSON.stringify(data.projects));
+          }
         }
       } catch (err) {
         console.error('Failed to fetch resume:', err);

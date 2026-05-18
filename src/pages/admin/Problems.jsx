@@ -23,6 +23,8 @@ export default function Problems() {
     sampleInput: "",
     sampleOutput: "",
     hiddenTestCase: "",
+    inputFormat: "",
+    outputFormat: "",
 
     // ✅ STARTER CODE TEMPLATES
     starterCpp: "",
@@ -32,6 +34,8 @@ export default function Problems() {
 
     points: 100,
     status: "Draft",
+    examples: [],
+    testCases: [],
   });
 
   useEffect(() => {
@@ -74,15 +78,21 @@ export default function Problems() {
         tag: data.tags?.[0] || "Array",
         description: data.description || "",
         constraints: data.constraints || "",
-        sampleInput: data.exampleInput || "",
-        sampleOutput: data.exampleOutput || "",
+        sampleInput: data.sampleInput || "",
+        sampleOutput: data.sampleOutput || "",
         hiddenTestCase: data.hiddenTestCase || "",
+        inputFormat: data.inputFormat || "",
+        outputFormat: data.outputFormat || "",
 
         // ✅ AUTO FILL STARTER CODE
         starterCpp: data.starterCode?.cpp || "",
         starterPython: data.starterCode?.python || "",
         starterJava: data.starterCode?.java || "",
         starterJs: data.starterCode?.javascript || "",
+
+        // ✅ AUTO FILL EXAMPLES AND TESTCASES
+        examples: data.examples || [],
+        testCases: (data.testCases && data.testCases.length > 0) ? data.testCases : (data.examples?.map(ex => ({ input: ex.input, output: ex.output })) || []),
       }));
 
       alert("Problem auto-filled successfully!");
@@ -118,6 +128,8 @@ export default function Problems() {
         sampleInput: "",
         sampleOutput: "",
         hiddenTestCase: "",
+        inputFormat: "",
+        outputFormat: "",
 
         starterCpp: "",
         starterPython: "",
@@ -126,6 +138,8 @@ export default function Problems() {
 
         points: 100,
         status: "Draft",
+        examples: [],
+        testCases: [],
       });
     } catch (error) {
       console.log(error);
@@ -205,6 +219,12 @@ export default function Problems() {
             <option>DP</option>
             <option>Graph</option>
             <option>Tree</option>
+            <option>basic maths</option>
+            <option>linkedlist</option>
+            <option>stack</option>
+            <option>queue</option>
+            <option>binary search</option>
+            <option>sorting</option>
           </select>
         </div>
 
@@ -223,6 +243,22 @@ export default function Problems() {
             rows={3}
             value={form.constraints}
             onChange={(e) => handleChange("constraints", e.target.value)}
+            className={`w-full ${inputClass}`}
+          />
+
+          <textarea
+            placeholder="Input Format"
+            rows={3}
+            value={form.inputFormat}
+            onChange={(e) => handleChange("inputFormat", e.target.value)}
+            className={`w-full ${inputClass}`}
+          />
+
+          <textarea
+            placeholder="Output Format"
+            rows={3}
+            value={form.outputFormat}
+            onChange={(e) => handleChange("outputFormat", e.target.value)}
             className={`w-full ${inputClass}`}
           />
 

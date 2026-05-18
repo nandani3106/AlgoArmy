@@ -80,11 +80,11 @@ export const getAllContestResults = async (req, res) => {
 
     const formatted = submissions.map((s) => ({
       _id: s._id,
-      id: s._id,
+      id: s.contest?._id?.toString(),
       contestTitle: s.contest?.title || "Unknown Contest",
-      score: s.score || 0,
+      score: s.score,
       status: s.status || s.verdict || "Submitted",
-      submittedAt: s.submittedAt,
+      submittedAt: s.submittedAt
     }));
 
     res.status(200).json({

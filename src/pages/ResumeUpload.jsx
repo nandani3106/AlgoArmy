@@ -47,8 +47,8 @@ const ResumeUpload = () => {
         questions: savedQuestions,
       });
       setResumeUrl(savedResumeUrl);
-      if (questions.length === 0) {
-        throw new Error('No interview questions were generated.');
+      if (savedQuestions.length === 0) {
+        console.warn('No interview questions were generated in the previous session.');
       }
 
       setParsed(true);

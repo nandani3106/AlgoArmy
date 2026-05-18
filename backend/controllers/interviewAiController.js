@@ -27,12 +27,17 @@ export const submitInterview = async (req, res) => {
       });
     }
 
-    // 1. Evaluate via Gemini
+    // 1. Fetch user to store candidate details
+    const user = await User.findById(userId);
+
+    // 2. Evaluate via Gemini
     const evaluation = await evaluateInterviewResponse({ questions, answers });
 
-    // 2. Save to database
+    // 3. Save to database
     const result = new InterviewResult({
       user: userId,
+      name: user ? user.fullName : "Candidate",
+      role: (user && user.role) ? user.role : "Software Engineer",
       questions,
       answers,
       technicalScore: evaluation.technicalScore,
@@ -40,6 +45,7 @@ export const submitInterview = async (req, res) => {
       overallScore: evaluation.overallScore,
       strengths: evaluation.strengths,
       improvements: evaluation.improvements,
+      feedback: evaluation.feedback || [],
     });
 
     await result.save();

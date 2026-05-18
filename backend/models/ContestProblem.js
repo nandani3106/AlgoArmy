@@ -6,7 +6,11 @@ const contestProblemSchema = new mongoose.Schema({
   statement: { type: String, required: [true, "Problem statement is required"] },
   inputFormat: { type: String, default: "" },
   outputFormat: { type: String, default: "" },
-  constraints: { type: String, default: "" },
+  constraints: [
+    {
+      type: String,
+    }
+  ],
   difficulty: { type: String, enum: ["Easy", "Medium", "Hard"], default: "Medium" },
   points: { type: Number, default: 100 },
   order: { type: Number, default: 1 },
@@ -33,6 +37,14 @@ const contestProblemSchema = new mongoose.Schema({
       isHidden: { type: Boolean, default: true }
     }
   ],
+  testCases: [
+    {
+      input: String,
+      output: String,
+      expectedOutput: String,
+      isHidden: { type: Boolean, default: false }
+    }
+  ],
   starterCode: {
     cpp: String,
     java: String,
@@ -42,4 +54,4 @@ const contestProblemSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
-export default mongoose.model("ContestProblem", contestProblemSchema);
+export default mongoose.models.ContestProblem || mongoose.model("ContestProblem", contestProblemSchema);

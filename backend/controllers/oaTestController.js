@@ -20,6 +20,8 @@ export const createOATest = async (req, res) => {
       ...req.body,
       createdBy: req.user._id,
     };
+    if (testData.startDate === "") delete testData.startDate;
+    if (testData.endDate === "") delete testData.endDate;
     const test = await OATest.create(testData);
     res.json(test);
   } catch (err) {
@@ -43,7 +45,10 @@ export const getOATestById = async (req, res) => {
 // UPDATE OA TEST
 export const updateOATest = async (req, res) => {
   try {
-    const test = await OATest.findByIdAndUpdate(req.params.id, req.body, {
+    const testData = { ...req.body };
+    if (testData.startDate === "") delete testData.startDate;
+    if (testData.endDate === "") delete testData.endDate;
+    const test = await OATest.findByIdAndUpdate(req.params.id, testData, {
       new: true,
     });
     res.json(test);

@@ -12,9 +12,11 @@ const ContestResults = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [submissions, setSubmissions] = useState([]);
+  const [statsData, setStatsData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log("ContestResults component mounted. useParams().id:", id);
     const token = localStorage.getItem('token');
     if (!token) { navigate('/login'); return; }
 
@@ -25,22 +27,31 @@ const ContestResults = () => {
         });
         if (res.status === 401) { localStorage.removeItem('token'); localStorage.removeItem('user'); navigate('/login'); return; }
         const data = await res.json();
-        if (data.success) setSubmissions(data.submissions);
+        if (data.success) {
+          setSubmissions(data.submissions);
+          setStatsData(data.stats);
+        }
       } catch (e) { console.error(e); }
       finally { setLoading(false); }
     };
     fetchResults();
   }, [id, navigate]);
 
-  const totalScore = submissions.reduce((sum, s) => sum + s.score, 0);
-  const accepted = submissions.filter(s => (s.status || s.verdict) === 'Accepted').length;
-  const accuracy = submissions.length > 0 ? Math.round((accepted / submissions.length) * 100) + '%' : '0%';
+  // Compute total score by summing maximum points earned per distinct problem
+  const problemScores = {};
+  submissions.forEach(s => {
+    if (s.problem) {
+      const pId = s.problem._id || s.problem;
+      problemScores[pId] = Math.max(problemScores[pId] || 0, s.score);
+    }
+  });
+  const totalScore = Object.values(problemScores).reduce((sum, val) => sum + val, 0);
 
   const stats = [
     { label: 'Total Score', value: totalScore, icon: Award, color: 'text-blue-500', bg: 'bg-blue-50' },
-    { label: 'Submissions', value: submissions.length, icon: Target, color: 'text-green-500', bg: 'bg-green-50' },
-    { label: 'Accuracy', value: accuracy, icon: Trophy, color: 'text-amber-500', bg: 'bg-amber-50' },
-    { label: 'Accepted', value: accepted, icon: CheckCircle2, color: 'text-purple-500', bg: 'bg-purple-50' },
+    { label: 'Total Questions', value: statsData?.totalQuestions || 0, icon: Target, color: 'text-green-500', bg: 'bg-green-50' },
+    { label: 'Attempted Questions', value: statsData?.attemptedQuestions || 0, icon: Clock, color: 'text-amber-500', bg: 'bg-amber-50' },
+    { label: 'Correct Questions', value: statsData?.correctQuestions || 0, icon: CheckCircle2, color: 'text-purple-500', bg: 'bg-purple-50' },
   ];
 
   if (loading) return <MainLayout><div className="flex items-center justify-center min-h-[60vh]"><Loader2 size={40} className="animate-spin text-orange-500" /></div></MainLayout>;

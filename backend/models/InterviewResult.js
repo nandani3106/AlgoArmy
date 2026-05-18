@@ -44,6 +44,10 @@ const interviewResultSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    feedback: {
+      type: Array,
+      default: [],
+    },
     status: {
       type: String,
       enum: ["Completed", "Flagged", "Rejected", "Shortlisted"],

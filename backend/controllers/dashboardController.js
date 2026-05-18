@@ -1,5 +1,5 @@
 import User from "../models/User.js";
-import Problem from "../models/Problem.js";
+import Problem from "../models/problem.js";
 import Contest from "../models/Contest.js";
 import OATest from "../models/OATest.js";
 import AIInterview from "../models/AIInterview.js";

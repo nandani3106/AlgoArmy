@@ -13,6 +13,11 @@ export default function OATests() {
   const [allProblems, setAllProblems] = useState([]);
   const [isEditing, setIsEditing] = useState(null); // stores ID of test being edited
 
+  const getLocalISOString = (date) => {
+    const tzoffset = date.getTimezoneOffset() * 60000;
+    return (new Date(date - tzoffset)).toISOString().slice(0, 16);
+  };
+
   // ================= INITIAL STATE =================
   const initialForm = {
     title: "",
@@ -20,8 +25,8 @@ export default function OATests() {
     type: "Mixed",
     selectedCodingQuestions: [],
     mcqs: [], // Array of { question, options: ['', '', '', ''], correctOption: 'A', marks: 1 }
-    startDate: "",
-    endDate: "",
+    startDate: getLocalISOString(new Date()),
+    endDate: getLocalISOString(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)),
     camera: true,
     mic: true,
     eyeTracking: true,

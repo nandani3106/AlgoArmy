@@ -20,11 +20,11 @@ const oaTestSchema = new mongoose.Schema(
     },
     startDate: {
       type: Date,
-      required: [true, "Please provide a start date and time"],
+      default: Date.now,
     },
     endDate: {
       type: Date,
-      required: [true, "Please provide an end date and time"],
+      default: () => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days default
     },
     totalQuestions: {
       type: Number,

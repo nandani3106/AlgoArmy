@@ -23,10 +23,10 @@ const protect = async (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    if (decoded.id === "admin") {
+    if (decoded.id === "admin" || decoded.id === "ad11ad11ad11ad11ad11ad11") {
       req.user = {
-        _id: "admin",
-        id: "admin",
+        _id: "ad11ad11ad11ad11ad11ad11",
+        id: "ad11ad11ad11ad11ad11ad11",
         fullName: "Administrator",
         email: "admin@algoarmy.com",
         role: "admin",

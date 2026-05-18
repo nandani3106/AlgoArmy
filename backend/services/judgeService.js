@@ -31,27 +31,44 @@ const normalizeOutput = (output) => {
 };
 
 /**
- * Estimates time complexity based on code patterns.
- * (Simple heuristic-based estimation)
+ * Estimates both time and space complexity based on code patterns.
+ * (Sophisticated heuristic-based Big-O analysis)
  */
 const estimateComplexity = (code, language) => {
   const codeLower = code.toLowerCase();
-
-  if (codeLower.includes("for") || codeLower.includes("while")) {
-    // Nested loops check
-    const loopCount = (codeLower.match(/for|while/g) || []).length;
-    if (loopCount >= 2) {
-      if (codeLower.includes("[") && codeLower.includes("]")) return "O(n²)";
-      return "O(n log n)";
+  
+  // 1. Time Complexity Estimation
+  let time = "O(1)";
+  const loopCount = (codeLower.match(/for\s*\(|while\s*\(|for\s+\w+\s+in|for\s+\w+\s+of/g) || []).length;
+  
+  if (codeLower.includes("binarysearch") || codeLower.includes("binary_search") || codeLower.match(/mid\s*=\s*/)) {
+    time = "O(log n)";
+  } else if (codeLower.includes("sort(") || codeLower.includes("sorted(")) {
+    time = "O(n log n)";
+  } else if (loopCount >= 2 && (codeLower.includes("nested") || codeLower.match(/(for|while).*\{.*(for|while)/s))) {
+    time = "O(n²)";
+  } else if (loopCount >= 1 || codeLower.includes("each") || codeLower.includes("map(") || codeLower.includes("filter(")) {
+    time = "O(n)";
+  } else if (codeLower.includes("recursion") || codeLower.includes("solve(") || codeLower.match(/function\s+(\w+)\(.*\)\s*\{.*(\1)\(.*\)/s)) {
+    time = "O(2ⁿ)";
+  }
+  
+  // 2. Space Complexity Estimation
+  let space = "O(1)";
+  if (codeLower.includes("map") || codeLower.includes("set") || codeLower.includes("dict") || codeLower.includes("new array") || codeLower.includes(".push(") || codeLower.includes("append(")) {
+    space = "O(n)";
+    if (time === "O(n²)" && (codeLower.includes("grid") || codeLower.includes("matrix") || codeLower.includes("dp = new array"))) {
+      space = "O(n²)";
     }
-    return "O(n)";
+  } else if (codeLower.includes("recursion") || codeLower.includes("call stack") || codeLower.match(/function\s+(\w+)\(.*\)\s*\{.*(\1)\(.*\)/s)) {
+    space = "O(n)";
   }
 
-  if (codeLower.includes("binarysearch") || codeLower.includes("log")) {
-    return "O(log n)";
-  }
-
-  return "O(1)";
+  return {
+    time,
+    space,
+    explanation: `Estimated ${time} time based on loops and ${space} space based on container allocations.`
+  };
 };
 
 /**

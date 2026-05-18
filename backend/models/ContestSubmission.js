@@ -17,7 +17,7 @@ const contestSubmissionSchema = new mongoose.Schema({
   executionTime: { type: String, default: "0 ms" },
   memoryUsed: { type: String, default: "0 MB" },
   compilerOutput: { type: String, default: "" },
-  complexityEstimate: { type: String, default: "N/A" },
+  complexityEstimate: { type: mongoose.Schema.Types.Mixed, default: "N/A" },
   failedTestCaseIndex: { type: Number, default: -1 },
   detailedResults: [
     {

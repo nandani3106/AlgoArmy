@@ -5,17 +5,17 @@ const oaSubmissionSchema = new mongoose.Schema({
   oaTest: { type: mongoose.Schema.Types.ObjectId, ref: "OATest", required: true },
   answers: [
     {
-      questionId: { type: mongoose.Schema.Types.ObjectId, ref: "OAQuestion" },
-      answer: { type: String }, // For MCQ, it's the option text; for coding, it's the code
+      questionId: { type: String },
+      answer: { type: String, default: "" }, // For MCQ, it's the option text; for coding, it's the code
       language: { type: String }, // For coding questions
-      isCorrect: { type: Boolean },
+      isCorrect: { type: Boolean, default: false },
       pointsEarned: { type: Number, default: 0 },
       verdict: { type: String }, // For coding: Accepted, Wrong Answer, etc.
       executionTime: { type: String },
       memoryUsed: { type: String },
       passedTests: { type: Number },
       totalTests: { type: Number },
-      complexityEstimate: { type: String },
+      complexityEstimate: { type: mongoose.Schema.Types.Mixed },
       compilerOutput: { type: String },
       detailedResults: Array,
     },

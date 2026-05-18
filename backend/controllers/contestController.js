@@ -2,8 +2,70 @@ import Contest from "../models/Contest.js";
 import ContestProblem from "../models/ContestProblem.js";
 import ContestSubmission from "../models/ContestSubmission.js";
 import ContestRegistration from "../models/ContestRegistration.js";
+import Problem from "../models/problem.js";
 import mongoose from "mongoose";
 import { evaluateCode } from "../services/judgeService.js";
+
+// Helper to sync selectedProblems on Contest document into ContestProblem collection
+const syncContestProblems = async (contestId) => {
+  try {
+    const contest = await Contest.findById(contestId).populate("selectedProblems");
+    if (!contest) return;
+
+    const existingCPs = await ContestProblem.find({ contest: contestId });
+    
+    // Remove ContestProblems that are no longer in selectedProblems list
+    const contestProblemsToRemove = existingCPs.filter(cp => {
+      const originalProblem = (contest.selectedProblems || []).find(p => p.title === cp.title);
+      return !originalProblem;
+    });
+
+    for (const cp of contestProblemsToRemove) {
+      await ContestProblem.findByIdAndDelete(cp._id);
+    }
+
+    // Refresh and update all selected problems (upsert to ensure self-healing and complete data synchrony)
+    let syncCount = 0;
+    for (let i = 0; i < (contest.selectedProblems || []).length; i++) {
+      const p = contest.selectedProblems[i];
+      const cpData = {
+        contest: contestId,
+        title: p.title,
+        statement: p.statement || p.description || "",
+        inputFormat: p.inputFormat || "",
+        outputFormat: p.outputFormat || "",
+        constraints: p.constraints || "",
+        difficulty: p.difficulty || "Medium",
+        points: p.points || 100,
+        order: i + 1,
+        timeLimit: 2,
+        memoryLimit: 256,
+        examples: p.examples || [],
+        sampleTestCases: p.testCases || [],
+        hiddenTestCases: p.hiddenTestCases || [],
+        starterCode: {
+          cpp: p.starterCode?.cpp || "",
+          java: p.starterCode?.java || "",
+          python: p.starterCode?.python || "",
+          javascript: p.starterCode?.javascript || p.starterCode?.js || "",
+        }
+      };
+
+      await ContestProblem.findOneAndUpdate(
+        { contest: contestId, title: p.title },
+        cpData,
+        { upsert: true, new: true }
+      );
+      syncCount++;
+    }
+
+    if (syncCount > 0) {
+      console.log(`Synced & updated ${syncCount} problems for contest: ${contest.title}`);
+    }
+  } catch (error) {
+    console.error("Error syncing contest problems:", error);
+  }
+};
 
 // @desc    Get all contests (Unified)
 // @route   GET /api/contests
@@ -62,6 +124,9 @@ export const registerForContest = async (req, res) => {
 // @access  Public
 export const getContestProblems = async (req, res) => {
   try {
+    // Proactively sync chosen problems
+    await syncContestProblems(req.params.id);
+
     const problems = await ContestProblem.find({ contest: req.params.id }).sort({ order: 1 });
     res.status(200).json({ success: true, count: problems.length, problems });
   } catch (error) {
@@ -129,8 +194,17 @@ export const submitContestSolution = async (req, res) => {
 
     const evaluation = await evaluateCode(code, language, allTestCases, problem.timeLimit, problem.memoryLimit);
     
-    // Rule: Points only for 100% pass
-    const finalScore = evaluation.verdict === "Accepted" ? problem.points : 0;
+    // Rule: Points only for 100% pass, and only count once per distinct problem
+    let finalScore = 0;
+    if (evaluation.verdict === "Accepted") {
+      const alreadyPassed = await ContestSubmission.exists({
+        contest: req.params.id,
+        problem: problemId,
+        user: req.user._id,
+        verdict: "Accepted"
+      });
+      finalScore = alreadyPassed ? 0 : problem.points;
+    }
 
     const submission = await ContestSubmission.create({
       contest: req.params.id,
@@ -168,12 +242,21 @@ export const getContestLeaderboard = async (req, res) => {
     const contestId = new mongoose.Types.ObjectId(req.params.id);
     const leaderboard = await ContestSubmission.aggregate([
       { $match: { contest: contestId } },
+      // Group by user and problem first, to get the max score achieved on that problem
       {
         $group: {
-          _id: "$user",
-          totalScore: { $sum: "$score" },
-          lastSubmission: { $max: "$submittedAt" },
-        },
+          _id: { user: "$user", problem: "$problem" },
+          maxProblemScore: { $max: "$score" },
+          lastProblemSubmission: { $max: "$submittedAt" }
+        }
+      },
+      // Group by user, summing the max scores across all problems
+      {
+        $group: {
+          _id: "$_id.user",
+          totalScore: { $sum: "$maxProblemScore" },
+          lastSubmission: { $max: "$lastProblemSubmission" }
+        }
       },
       { $sort: { totalScore: -1, lastSubmission: 1 } },
       {
@@ -210,9 +293,16 @@ export const finishContest = async (req, res) => {
     const contestId = req.params.id;
     const userId = req.user._id;
 
-    // Calculate total score for this user in this contest
+    // Calculate total score for this user in this contest by taking the max score per distinct problem
     const submissions = await ContestSubmission.find({ contest: contestId, user: userId });
-    const totalScore = submissions.reduce((sum, s) => sum + s.score, 0);
+    const problemScores = {};
+    submissions.forEach(s => {
+      if (s.problem) {
+        const pId = s.problem.toString();
+        problemScores[pId] = Math.max(problemScores[pId] || 0, s.score);
+      }
+    });
+    const totalScore = Object.values(problemScores).reduce((sum, val) => sum + val, 0);
 
     const registration = await ContestRegistration.findOneAndUpdate(
       { contest: contestId, user: userId },
@@ -237,10 +327,39 @@ export const finishContest = async (req, res) => {
 // @access  Private
 export const getContestResults = async (req, res) => {
   try {
-    const submissions = await ContestSubmission.find({ contest: req.params.id, user: req.user._id })
+    const contestId = req.params.id;
+    const totalProblems = await ContestProblem.countDocuments({ contest: contestId });
+
+    const submissions = await ContestSubmission.find({ contest: contestId, user: req.user._id })
       .populate("problem", "title points order")
+      .populate("contest", "title")
       .sort({ submittedAt: -1 });
-    res.status(200).json({ success: true, submissions });
+
+    console.log("getContestResults called. req.params.id:", req.params.id);
+    console.log("Submissions count for user in this contest:", submissions.length);
+
+    const attemptedProblemIds = new Set();
+    const correctProblemIds = new Set();
+    
+    submissions.forEach(sub => {
+      if (sub.problem) {
+        const pId = sub.problem._id.toString();
+        attemptedProblemIds.add(pId);
+        if (sub.verdict === "Accepted") {
+          correctProblemIds.add(pId);
+        }
+      }
+    });
+
+    res.status(200).json({ 
+      success: true, 
+      submissions,
+      stats: {
+        totalQuestions: totalProblems,
+        attemptedQuestions: attemptedProblemIds.size,
+        correctQuestions: correctProblemIds.size
+      }
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: "Results error" });
   }
@@ -256,6 +375,9 @@ export const createContest = async (req, res) => {
       ...req.body,
       createdBy: req.user._id,
     });
+    if (contest) {
+      await syncContestProblems(contest._id);
+    }
     res.status(201).json({ success: true, data: contest });
   } catch (err) {
     res.status(500).json({ success: false, message: "Error creating contest" });
@@ -272,6 +394,9 @@ export const updateContest = async (req, res) => {
       req.body,
       { new: true }
     );
+    if (contest) {
+      await syncContestProblems(contest._id);
+    }
     res.json({ success: true, data: contest });
   } catch (err) {
     res.status(500).json({ success: false, message: "Error updating contest" });
