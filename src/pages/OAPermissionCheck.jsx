@@ -6,6 +6,7 @@ import {
 import MainLayout from '../components/MainLayout';
 import GradientButton from '../components/GradientButton';
 import PermissionChecklist from '../components/PermissionChecklist';
+import BrandLogo from '../components/BrandLogo';
 import { toast } from 'sonner';
 
 const API_BASE = 'http://localhost:5000';
@@ -241,9 +242,14 @@ const OAPermissionCheck = () => {
   if (loading) {
     return (
       <MainLayout>
-        <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4">
-          <Loader2 className="text-orange-500 animate-spin" size={48} />
-          <p className="text-slate-500 font-bold animate-pulse">Initializing System Check...</p>
+        <div className="min-h-[60vh] flex flex-col items-center justify-center gap-6">
+          <div className="relative flex items-center justify-center">
+            <div className="w-20 h-20 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
+            <div className="absolute">
+              <BrandLogo size="sm" showText={false} clickable={false} />
+            </div>
+          </div>
+          <p className="text-slate-500 font-bold animate-pulse text-xs uppercase tracking-widest mt-2">Initializing System Check...</p>
         </div>
       </MainLayout>
     );

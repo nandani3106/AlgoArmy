@@ -4,6 +4,7 @@ import MainLayout from '../components/MainLayout';
 import DashboardCard from '../components/DashboardCard';
 import GradientButton from '../components/GradientButton';
 import PermissionChecklist from '../components/PermissionChecklist';
+import BrandLogo from '../components/BrandLogo';
 import { 
   ChevronLeft, Camera, Mic, Wifi, Volume2, Shield, 
   Brain, Target, MessageSquare, Zap, Briefcase, Loader2, RefreshCw, AlertTriangle
@@ -239,9 +240,11 @@ const InterviewInstructions = () => {
   if (preparing) return (
     <MainLayout>
       <div className="h-[60vh] flex flex-col items-center justify-center gap-6">
-        <div className="relative">
+        <div className="relative flex items-center justify-center">
           <div className="w-20 h-20 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
-          <Brain className="absolute inset-0 m-auto text-orange-500" size={32} />
+          <div className="absolute">
+            <BrandLogo size="sm" showText={false} clickable={false} />
+          </div>
         </div>
         <div className="text-center space-y-2">
           <h2 className="text-xl font-black text-[#0B1B3B] uppercase tracking-widest">Preparing Your Session</h2>

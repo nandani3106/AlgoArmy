@@ -5,6 +5,7 @@ import {
   MessageSquare, SkipForward, Loader2, AlertCircle, Volume2
 } from 'lucide-react';
 import { toast } from 'sonner';
+import BrandLogo from '../components/BrandLogo';
 
 const API_BASE = 'http://localhost:5000';
 
@@ -368,7 +369,7 @@ const InterviewRoom = () => {
       {/* Header */}
       <div className="h-16 border-b border-white/5 px-8 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-4">
-           <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center font-black text-xs">AA</div>
+           <BrandLogo size="sm" showText={false} clickable={false} />
            <span className="text-xs font-black uppercase tracking-widest text-white/40">AI Interview Room</span>
         </div>
         <div className="flex items-center gap-6">

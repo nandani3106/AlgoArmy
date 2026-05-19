@@ -10,6 +10,7 @@ import ProblemPanel from '../components/ProblemPanel';
 import CodeEditor from '../components/CodeEditor';
 import OutputPanel from '../components/OutputPanel';
 import WorkspaceLayout from '../components/WorkspaceLayout';
+import BrandLogo from '../components/BrandLogo';
 import { toast } from 'sonner';
 
 const API_BASE = 'http://localhost:5000';
@@ -399,9 +400,7 @@ const CodingWorkspace = () => {
       <header className="h-14 bg-[#0B1B3B] border-b border-white/10 px-6 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2 cursor-pointer group" onClick={() => navigate('/contests')}>
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center group-hover:scale-110 transition-transform">
-              <span className="text-white font-black text-sm">AA</span>
-            </div>
+            <BrandLogo size="sm" showText={false} clickable={false} />
             <span className="text-white/40 group-hover:text-white transition-colors"><ChevronLeft size={16} /></span>
           </div>
           

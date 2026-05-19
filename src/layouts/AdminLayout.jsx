@@ -14,6 +14,8 @@ import {
   Moon,
 } from "lucide-react";
 
+import BrandLogo from "../components/BrandLogo";
+
 export default function AdminLayout() {
   const { isDark, toggleTheme } = useTheme();
 
@@ -85,13 +87,8 @@ export default function AdminLayout() {
           : 'bg-white border-[#ECE7DF]'
       }`}>
         {/* Logo */}
-        <div className="flex items-center gap-3 mb-10">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-500/20">
-            <span className="text-white font-black text-xl">AA</span>
-          </div>
-          <h1 className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-[#0D1B4C]'}`}>
-            AlgoArmy
-          </h1>
+        <div className="flex items-center justify-center mb-10">
+          <BrandLogo size="md" showText={true} />
         </div>
 
         {/* Nav */}

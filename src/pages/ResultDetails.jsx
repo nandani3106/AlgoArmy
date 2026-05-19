@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import MainLayout from '../components/MainLayout';
 import ScoreCard from '../components/ScoreCard';
 import DashboardCard from '../components/DashboardCard';
+import BrandLogo from '../components/BrandLogo';
 import {
   Trophy, Award, Target, Clock, Zap, ChevronLeft,
   Download, PieChart, TrendingUp, Building2, Video,
@@ -355,7 +356,15 @@ const ResultDetails = () => {
           </div>
         </div>
 
-        <div ref={reportRef} className="space-y-10">
+        <div ref={reportRef} className="space-y-10 bg-white p-8 md:p-12 rounded-[2rem] border border-slate-100/80 shadow-sm">
+          {/* PDF Report Header with Logo */}
+          <div className="flex items-center justify-between pb-8 border-b border-slate-100">
+            <BrandLogo size="md" showText={true} clickable={false} />
+            <div className="text-right">
+              <p className="text-[10px] font-black text-[#0B1B3B] uppercase tracking-[0.2em] mb-1">Official Candidate Report</p>
+              <p className="text-xs font-bold text-slate-400">Generated: {new Date().toLocaleDateString()}</p>
+            </div>
+          </div>
           {type === 'contest' && renderContestReport()}
           {type === 'oa' && renderOAReport()}
           {type === 'interview' && renderInterviewReport()}

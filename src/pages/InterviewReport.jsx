@@ -9,6 +9,7 @@ import {
 import MainLayout from '../components/MainLayout';
 import ScoreCard from '../components/ScoreCard';
 import DashboardCard from '../components/DashboardCard';
+import BrandLogo from '../components/BrandLogo';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -99,7 +100,7 @@ const InterviewReport = () => {
 
   return (
     <MainLayout>
-      <div className="space-y-10 pb-12" ref={reportRef}>
+      <div className="space-y-10 pb-12">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
@@ -131,8 +132,19 @@ const InterviewReport = () => {
           </button>
         </div>
 
-        {/* Quick Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        {/* Printable Area */}
+        <div ref={reportRef} className="space-y-10 bg-[#fafaf9] p-8 md:p-12 rounded-[2.5rem] border border-slate-200/60 shadow-sm">
+          {/* PDF Report Header with Logo */}
+          <div className="flex items-center justify-between pb-8 border-b border-slate-200">
+            <BrandLogo size="md" showText={true} clickable={false} />
+            <div className="text-right">
+              <p className="text-[10px] font-black text-[#0B1B3B] uppercase tracking-[0.2em] mb-1">AI Technical Interview Report</p>
+              <p className="text-xs font-bold text-slate-400">Generated: {new Date(report.createdAt).toLocaleDateString()}</p>
+            </div>
+          </div>
+
+          {/* Quick Stats Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           <ScoreCard 
             title="Technical Score" 
             value={`${report.technicalScore || 0}%`} 
@@ -272,6 +284,7 @@ const InterviewReport = () => {
               </div>
             </DashboardCard>
           </div>
+        </div>
         </div>
       </div>
     </MainLayout>

@@ -4,6 +4,7 @@ import { Calendar, Clock, Users, Trophy, ChevronLeft, Shield, AlertCircle, Zap, 
 import MainLayout from '../components/MainLayout';
 import GradientButton from '../components/GradientButton';
 import DashboardCard from '../components/DashboardCard';
+import BrandLogo from '../components/BrandLogo';
 
 const API_BASE = 'http://localhost:5000';
 
@@ -128,7 +129,7 @@ const ContestDetails = () => {
             {contest.prizes && <DashboardCard title="Prizes" icon={Trophy}><div className="p-4 rounded-2xl bg-slate-50 border border-slate-100"><p className="text-sm text-slate-600 font-medium whitespace-pre-line">{contest.prizes}</p></div></DashboardCard>}
             <DashboardCard title="Contest Host" icon={Shield}>
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#0B1B3B] to-[#1e3a8a] flex items-center justify-center text-white"><span className="font-black">AA</span></div>
+                <BrandLogo size="sm" showText={false} clickable={false} />
                 <div><h4 className="font-bold text-[#0B1B3B]">AlgoArmy Official</h4><p className="text-xs text-slate-500 font-bold">Verified Host</p></div>
               </div>
             </DashboardCard>

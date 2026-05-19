@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Trophy, Brain, ShieldCheck, Code2 } from "lucide-react";
+import BrandLogo from "../components/BrandLogo";
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -66,10 +67,8 @@ export default function LandingPage() {
       ))}
 
       {/* NAVBAR */}
-      <nav className="relative z-10 flex justify-between items-center px-8 md:px-14 py-6">
-        <h1 className="text-2xl font-bold bg-gradient-to-r from-orange-500 to-yellow-500 bg-clip-text text-transparent">
-          AlgoArmy
-        </h1>
+      <nav className="relative z-10 flex justify-between items-center px-8 md:px-14 py-4 border-b border-[#0B1B3B]/10 bg-[#0B1B3B]/5 backdrop-blur-md">
+        <BrandLogo size="md" showText={true} />
 
         <div className="space-x-4">
           <button onClick={() => navigate('/login')}
@@ -99,7 +98,21 @@ export default function LandingPage() {
       </nav>
 
       {/* HERO */}
-      <section className="relative z-10 flex flex-col items-center text-center px-6 pt-24">
+      <section className="relative z-10 flex flex-col items-center text-center px-6 pt-20">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{
+            opacity: 1,
+            y: [0, -8, 0]
+          }}
+          transition={{
+            opacity: { duration: 0.8 },
+            y: { duration: 4, repeat: Infinity, ease: "easeInOut" }
+          }}
+          className="mb-2 select-none pointer-events-none"
+        >
+          <BrandLogo size="xl" showText={false} clickable={false} />
+        </motion.div>
 
         <motion.h1
           initial={{ opacity: 0, y: 30 }}
@@ -230,8 +243,9 @@ export default function LandingPage() {
       </section>
 
       {/* FOOTER */}
-      <footer className="border-t border-slate-200 py-8 text-center text-slate-500 mt-24">
-        © 2026 AlgoArmy. All rights reserved.
+      <footer className="border-t border-slate-200 py-8 text-center text-slate-500 mt-24 flex flex-col items-center justify-center gap-2">
+        <BrandLogo size="sm" showText={true} clickable={false} />
+        <p className="text-xs">© 2026 AlgoArmy. All rights reserved.</p>
       </footer>
     </main>
   );

@@ -1,7 +1,8 @@
 import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { Sun, Moon } from 'lucide-react';
+import BrandLogo from './BrandLogo';
 
 const Sidebar = () => {
   const { isDark, toggleTheme } = useTheme();
@@ -19,11 +20,8 @@ const Sidebar = () => {
   return (
     <aside className="fixed left-0 top-0 h-screen w-72 bg-white border-r border-orange-100/50 flex flex-col z-40">
       {/* Logo Section */}
-      <div className="p-8 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-lg shadow-orange-500/20">
-          <span className="text-white font-black text-xl">AA</span>
-        </div>
-        <span className="text-2xl font-black text-[#0B1B3B] tracking-tighter">AlgoArmy</span>
+      <div className="p-8 flex items-center justify-center">
+        <BrandLogo size="md" showText={true} />
       </div>
 
       {/* Navigation Links */}
