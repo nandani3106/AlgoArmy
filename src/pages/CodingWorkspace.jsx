@@ -52,7 +52,8 @@ const CodingWorkspace = () => {
   const [activeMobileTab, setActiveMobileTab] = useState('problem'); // 'problem', 'editor', 'console'
   const [isMobile, setIsMobile] = useState(false);
 
-  const [timeLeft, setTimeLeft] = useState(5400); // 90 minutes
+  const [contest, setContest] = useState(null);
+  const [remainingTime, setRemainingTime] = useState(null);
 
   const getStorageKey = useCallback((qId, lang) => `contest-${qId}-${lang}`, []);
 
@@ -100,6 +101,16 @@ const CodingWorkspace = () => {
         const data = await res.json();
         if (data.success) {
           setProblems(data.problems);
+          if (data.contest) {
+            setContest(data.contest);
+          } else {
+            // Fallback direct contest call
+            const contestRes = await fetch(`${API_BASE}/api/contests/${contestId}`);
+            const contestData = await contestRes.json();
+            if (contestData.success && contestData.contest) {
+              setContest(contestData.contest);
+            }
+          }
           const currentP = data.problems.find(p => p._id === questionId) || data.problems[0];
           if (currentP && currentP._id !== questionId) {
             navigate(`/workspace/${contestId}/${currentP._id}`, { replace: true });
@@ -127,11 +138,46 @@ const CodingWorkspace = () => {
   }, [code, language, questionId, getStorageKey]);
 
   useEffect(() => {
-    const timer = setInterval(() => setTimeLeft(prev => (prev > 0 ? prev - 1 : 0)), 1000);
-    return () => clearInterval(timer);
-  }, []);
+    if (!contest || !contest.startTime || !contest.durationMinutes) return;
+
+    const updateTimer = () => {
+      const startTime = new Date(contest.startTime).getTime();
+      const contestEndTime = startTime + (contest.durationMinutes * 60 * 1000);
+      const remTime = contestEndTime - Date.now();
+
+      console.log("Contest Start Time:", contest.startTime);
+      console.log("Contest Duration:", contest.durationMinutes);
+      console.log("Contest End Time:", new Date(contestEndTime));
+      console.log("Remaining Time:", remTime);
+
+      setRemainingTime(remTime);
+    };
+
+    updateTimer();
+    const timerId = setInterval(updateTimer, 1000);
+    return () => clearInterval(timerId);
+  }, [contest]);
+
+  const formatTime = (ms) => {
+    if (ms === null || ms === undefined) return "00:00:00";
+    if (ms <= 0) return "Contest Ended";
+
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    const pad = (num) => String(num).padStart(2, '0');
+    return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+  };
+
+  const isEnded = remainingTime !== null && remainingTime <= 0;
 
   const handleRun = async () => {
+    if (isEnded) {
+      toast.error("Contest has ended. Submissions are disabled.");
+      return;
+    }
     if (!questionId || isRunning) return;
     setIsRunning(true); 
     setIsSubmitting(false);
@@ -180,6 +226,10 @@ const CodingWorkspace = () => {
   };
 
   const handleSubmit = async () => {
+    if (isEnded) {
+      toast.error("Contest has ended. Submissions are disabled.");
+      return;
+    }
     if (!questionId || isRunning || isSubmitting) return;
     const token = localStorage.getItem('token');
     setIsSubmitting(true); 
@@ -365,7 +415,7 @@ const CodingWorkspace = () => {
             <div className="flex items-center gap-2 px-3 py-1 bg-orange-500/10 border border-orange-500/20 rounded-full">
               <Clock size={12} className="text-orange-400" />
               <span className="text-orange-400 font-mono text-[10px] font-black tracking-widest">
-                {Math.floor(timeLeft / 3600)}h {Math.floor((timeLeft % 3600) / 60)}m {timeLeft % 60}s
+                {formatTime(remainingTime)}
               </span>
             </div>
           </div>
@@ -392,10 +442,10 @@ const CodingWorkspace = () => {
           </div>
 
           <div className="flex items-center gap-2 ml-4">
-            <button onClick={handleRun} disabled={isRunning} className="px-5 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/10 flex items-center gap-2 transition-all disabled:opacity-50">
+            <button onClick={handleRun} disabled={isRunning || isEnded} className="px-5 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/10 flex items-center gap-2 transition-all disabled:opacity-50">
               <Play size={12} fill="currentColor" /> {isRunning && !isSubmitting ? 'Running...' : 'Run'}
             </button>
-            <button onClick={handleSubmit} disabled={isRunning} className="px-5 py-2 rounded-xl bg-orange-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-orange-700 flex items-center gap-2 transition-all disabled:opacity-50 shadow-lg shadow-orange-900/20">
+            <button onClick={handleSubmit} disabled={isRunning || isSubmitting || isEnded} className="px-5 py-2 rounded-xl bg-orange-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-orange-700 flex items-center gap-2 transition-all disabled:opacity-50 shadow-lg shadow-orange-900/20">
               <Send size={12} fill="currentColor" /> {isSubmitting ? 'Submitting...' : 'Submit'}
             </button>
             <button onClick={handleFinish} className="px-5 py-2 rounded-xl bg-white/5 border border-white/10 text-white/60 text-[10px] font-black uppercase tracking-widest hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/20 flex items-center gap-2 transition-all">

@@ -9,7 +9,7 @@ import {
   MessageSquare, CheckCircle, AlertCircle, BarChart3, Share2, Loader2,
   Code2, Timer, Database, Activity, ChevronDown, ChevronUp, XCircle
 } from 'lucide-react';
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 
 const API_BASE = 'http://localhost:5000';

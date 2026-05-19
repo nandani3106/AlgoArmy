@@ -128,7 +128,8 @@ export const getContestProblems = async (req, res) => {
     await syncContestProblems(req.params.id);
 
     const problems = await ContestProblem.find({ contest: req.params.id }).sort({ order: 1 });
-    res.status(200).json({ success: true, count: problems.length, problems });
+    const contest = await Contest.findById(req.params.id).select("startTime durationMinutes title");
+    res.status(200).json({ success: true, count: problems.length, problems, contest });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server error" });
   }

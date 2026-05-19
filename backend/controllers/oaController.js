@@ -2,6 +2,7 @@ import OATest from "../models/OATest.js";
 import OAQuestion from "../models/OAQuestion.js";
 import Problem from "../models/problem.js";
 import OASubmission from "../models/OASubmission.js";
+import OALog from "../models/OALog.js";
 import { evaluateCode } from "../services/judgeService.js";
 
 // @desc    Get all OA tests
@@ -347,5 +348,70 @@ export const getOAReport = async (req, res) => {
     res.status(200).json({ success: true, submission });
   } catch (error) {
     res.status(500).json({ success: false, message: "Report error" });
+  }
+};
+
+// @desc    Log OA initial setup verification
+// @route   POST /api/oa/:id/log-setup
+export const logOASetup = async (req, res) => {
+  try {
+    const oaTestId = req.params.id;
+    const userId = req.user._id;
+    const { permissions, browser, os, timestamp } = req.body;
+
+    const oaLog = await OALog.findOneAndUpdate(
+      { user: userId, oaTest: oaTestId },
+      {
+        user: userId,
+        oaTest: oaTestId,
+        setupCheck: {
+          permissions,
+          browser,
+          os,
+          timestamp: timestamp || new Date()
+        }
+      },
+      { upsert: true, new: true }
+    );
+
+    res.status(200).json({ success: true, log: oaLog });
+  } catch (error) {
+    console.error("Log OA Setup Error:", error.message);
+    res.status(500).json({ success: false, message: "Error saving setup verification log" });
+  }
+};
+
+// @desc    Log OA proctoring violation/event
+// @route   POST /api/oa/:id/log-violation
+export const logOAViolation = async (req, res) => {
+  try {
+    const oaTestId = req.params.id;
+    const userId = req.user._id;
+    const { eventType, description } = req.body;
+
+    let oaLog = await OALog.findOne({ user: userId, oaTest: oaTestId });
+
+    if (!oaLog) {
+      oaLog = new OALog({
+        user: userId,
+        oaTest: oaTestId,
+        violations: [],
+        violationCount: 0
+      });
+    }
+
+    oaLog.violations.push({
+      eventType,
+      description,
+      timestamp: new Date()
+    });
+    oaLog.violationCount += 1;
+
+    await oaLog.save();
+
+    res.status(200).json({ success: true, log: oaLog, violationCount: oaLog.violationCount });
+  } catch (error) {
+    console.error("Log OA Violation Error:", error.message);
+    res.status(500).json({ success: false, message: "Error recording proctoring violation" });
   }
 };

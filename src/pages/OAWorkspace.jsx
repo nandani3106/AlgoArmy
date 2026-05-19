@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Clock, Send, ChevronLeft, ChevronRight,
@@ -57,6 +57,11 @@ const OAWorkspace = () => {
   // Mobile rendering states
   const [activeMobileTab, setActiveMobileTab] = useState('problem'); // 'problem', 'editor', 'console'
   const [isMobile, setIsMobile] = useState(false);
+
+  const [proctorStream, setProctorStream] = useState(null);
+  const [screenStream, setScreenStream] = useState(null);
+  const [violationCount, setViolationCount] = useState(0);
+  const workspaceVideoRef = useRef(null);
 
   const getStorageKey = useCallback((qId, lang) => `oa-${qId}-${lang}`, []);
 
@@ -330,6 +335,176 @@ const OAWorkspace = () => {
     } catch (err) { toast.error('Submission error'); }
     finally { setSubmitting(false); }
   };
+
+  const logViolation = useCallback(async (eventType, description) => {
+    toast.warning(`Proctoring Alert: ${eventType} - ${description}`, { duration: 5000 });
+    console.warn(`[Proctoring Violation] Event: ${eventType}, Details: ${description}`);
+
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/api/oa/${id}/log-violation`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ eventType, description })
+      });
+      const data = await res.json();
+      if (data.success) {
+        const count = data.violationCount;
+        setViolationCount(count);
+        
+        if (count >= 5) {
+          toast.error("Maximum proctoring violations reached. Auto-submitting assessment...", { duration: 8000 });
+          submitAssessment(true);
+        } else {
+          toast.error(`Warning: ${5 - count} violations remaining before automatic assessment submission!`, { duration: 6000 });
+        }
+      }
+    } catch (err) {
+      console.error("Failed to log violation on backend:", err);
+      setViolationCount(prev => {
+        const newCount = prev + 1;
+        if (newCount >= 5) {
+          submitAssessment(true);
+        }
+        return newCount;
+      });
+    }
+  }, [id]);
+
+  // Start proctor streams once OA metadata is initialized
+  useEffect(() => {
+    if (!oa) return;
+
+    const startProctoring = async () => {
+      try {
+        const media = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        setProctorStream(media);
+        
+        const screen = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        setScreenStream(screen);
+
+        if (!document.fullscreenElement) {
+          try {
+            await document.documentElement.requestFullscreen();
+          } catch (e) {
+            console.error("Fullscreen prompt failed");
+          }
+        }
+      } catch (err) {
+        toast.error("Proctoring streams failed to initialize. Please verify device permissions.");
+      }
+    };
+
+    startProctoring();
+
+    return () => {
+      if (proctorStream) proctorStream.getTracks().forEach(t => t.stop());
+      if (screenStream) screenStream.getTracks().forEach(t => t.stop());
+    };
+  }, [oa]);
+
+  // Bind proctorStream to workspace preview ref
+  useEffect(() => {
+    if (proctorStream && workspaceVideoRef.current) {
+      workspaceVideoRef.current.srcObject = proctorStream;
+    }
+  }, [proctorStream]);
+
+  // 1. Camera track ending
+  useEffect(() => {
+    if (!proctorStream) return;
+    const videoTrack = proctorStream.getVideoTracks()[0];
+    if (!videoTrack) return;
+
+    const handleEnded = () => {
+      logViolation("Camera disabled", "Candidate camera track stopped or disconnected.");
+    };
+    
+    videoTrack.addEventListener('ended', handleEnded);
+    return () => videoTrack.removeEventListener('ended', handleEnded);
+  }, [proctorStream, logViolation]);
+
+  // 2. Microphone track ending
+  useEffect(() => {
+    if (!proctorStream) return;
+    const audioTrack = proctorStream.getAudioTracks()[0];
+    if (!audioTrack) return;
+
+    const handleEnded = () => {
+      logViolation("Microphone disabled", "Candidate microphone track stopped or disconnected.");
+    };
+    
+    audioTrack.addEventListener('ended', handleEnded);
+    return () => audioTrack.removeEventListener('ended', handleEnded);
+  }, [proctorStream, logViolation]);
+
+  // 3. Screen sharing track ending
+  useEffect(() => {
+    if (!screenStream) return;
+    const videoTrack = screenStream.getVideoTracks()[0];
+    if (!videoTrack) return;
+
+    const handleEnded = () => {
+      logViolation("Screen sharing stopped", "Candidate stopped sharing their screen feed.");
+    };
+    
+    videoTrack.addEventListener('ended', handleEnded);
+    return () => videoTrack.removeEventListener('ended', handleEnded);
+  }, [screenStream, logViolation]);
+
+  // 4. Tab visibility change
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        logViolation("Tab switched", "Candidate navigated away from the active assessment tab.");
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [logViolation]);
+
+  // 5. Window blur
+  useEffect(() => {
+    const handleBlur = () => {
+      logViolation("Window unfocused", "Candidate clicked outside the active proctoring window.");
+    };
+
+    window.addEventListener('blur', handleBlur);
+    return () => window.removeEventListener('blur', handleBlur);
+  }, [logViolation]);
+
+  // 6. Fullscreen exit
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement) {
+        logViolation("Fullscreen exited", "Candidate exited full-screen proctoring mode.");
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, [logViolation]);
+
+  // 7. Internet disconnection
+  useEffect(() => {
+    const handleOffline = () => {
+      logViolation("Internet disconnected", "Stable internet connection was lost.");
+    };
+    const handleOnline = () => {
+      toast.success("Internet connection restored.");
+    };
+
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
+    return () => {
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [logViolation]);
 
   const handleLanguageChange = (newLang) => {
     const qId = questions[currentIdx]._id;
@@ -698,6 +873,28 @@ const OAWorkspace = () => {
           )}
         </div>
       </div>
+
+      {/* Sleek Floating Proctoring Status Panel */}
+      {proctorStream && (
+        <div className="fixed bottom-24 right-6 w-44 h-32 rounded-3xl bg-[#090b11]/80 backdrop-blur-md border border-white/10 overflow-hidden shadow-2xl z-[9999] transition-all hover:scale-105">
+          <video 
+            ref={workspaceVideoRef} 
+            autoPlay 
+            playsInline 
+            muted 
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute top-2 left-2 flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[#090b11]/60 backdrop-blur-sm border border-white/10">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping" />
+            <span className="text-[8px] font-black uppercase text-slate-300 tracking-wider">AI Proctor Live</span>
+          </div>
+          {violationCount > 0 && (
+            <div className="absolute bottom-2 right-2 px-2.5 py-1 rounded-xl bg-red-600/90 text-white text-[8px] font-black uppercase tracking-widest animate-pulse border border-red-500/20">
+              {violationCount} Violations
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
