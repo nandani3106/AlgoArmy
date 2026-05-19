@@ -87,8 +87,11 @@ export default function AdminLayout() {
           : 'bg-white border-[#ECE7DF]'
       }`}>
         {/* Logo */}
-        <div className="flex items-center justify-center mb-10">
-          <BrandLogo size="md" showText={true} />
+        <div className="flex items-center gap-3 mb-10">
+          <BrandLogo size="sm" showText={false} clickable={true} />
+          <h1 className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-[#0D1B4C]'}`}>
+            AlgoArmy
+          </h1>
         </div>
 
         {/* Nav */}

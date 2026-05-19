@@ -20,8 +20,9 @@ const Sidebar = () => {
   return (
     <aside className="fixed left-0 top-0 h-screen w-72 bg-white border-r border-orange-100/50 flex flex-col z-40">
       {/* Logo Section */}
-      <div className="p-8 flex items-center justify-center">
-        <BrandLogo size="md" showText={true} />
+      <div className="p-8 flex items-center gap-3">
+        <BrandLogo size="sm" showText={false} clickable={true} />
+        <span className="text-2xl font-black text-[#0B1B3B] tracking-tighter">AlgoArmy</span>
       </div>
 
       {/* Navigation Links */}
