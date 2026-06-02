@@ -259,21 +259,21 @@ const ResultDetails = () => {
         <div className="lg:col-span-8 space-y-8">
           <DashboardCard title="Strengths & Insights" icon={TrendingUp}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-6 bg-green-50 border border-green-100 rounded-3xl">
+              <div className="p-6 bg-green-50 dark:bg-green-950/20 border border-green-100 dark:border-green-900/30 rounded-3xl">
                 <h5 className="text-[10px] font-black uppercase tracking-widest text-green-600 mb-4">Core Strengths</h5>
                 <ul className="space-y-2">
                   {(data.strengths || ['Good technical knowledge', 'Clear articulation']).map((s, i) => (
-                    <li key={i} className="text-sm font-bold text-green-800 flex items-center gap-2">
+                    <li key={i} className="text-sm font-bold text-green-800 dark:text-green-200 flex items-center gap-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-green-600" /> {s}
                     </li>
                   ))}
                 </ul>
               </div>
-              <div className="p-6 bg-orange-50 border border-orange-100 rounded-3xl">
+              <div className="p-6 bg-orange-50 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900/30 rounded-3xl">
                 <h5 className="text-[10px] font-black uppercase tracking-widest text-orange-600 mb-4">Improvement Areas</h5>
                 <ul className="space-y-2">
                   {(data.improvements || ['Practice edge cases', 'Reduce fillers']).map((s, i) => (
-                    <li key={i} className="text-sm font-bold text-orange-800 flex items-center gap-2">
+                    <li key={i} className="text-sm font-bold text-orange-800 dark:text-orange-200 flex items-center gap-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-orange-600" /> {s}
                     </li>
                   ))}

@@ -167,6 +167,7 @@ export default function LandingPage() {
 
           {/* Explore Contests */}
           <motion.button
+            onClick={() => navigate('/signup')}
             whileHover={{ scale: 1.03 }}
             className="relative overflow-hidden border border-slate-300 px-8 py-4 rounded-full bg-white/60 hover:bg-white transition"
           >

@@ -101,29 +101,29 @@ export const getProfile = async (req, res) => {
 
     // 5. Streak calculation
     const allActivityDates = [];
-    
+
     const contestDates = await ContestSubmission.find({ user: userId }).select("submittedAt");
     contestDates.forEach(d => {
       if (d.submittedAt) allActivityDates.push(new Date(d.submittedAt));
     });
-    
+
     const oaDates = await OASubmission.find({ user: userId }).select("submittedAt");
     oaDates.forEach(d => {
       if (d.submittedAt) allActivityDates.push(new Date(d.submittedAt));
     });
-    
+
     const interviewDates = await InterviewResult.find({ user: userId }).select("createdAt");
     interviewDates.forEach(d => {
       if (d.createdAt) allActivityDates.push(new Date(d.createdAt));
     });
-    
+
     // Sort dates descending, filter unique dates
     const sortedDates = allActivityDates
       .map(d => d.toDateString())
       .filter((v, i, a) => a.indexOf(v) === i)
       .map(d => new Date(d))
       .sort((a, b) => b - a);
-      
+
     let streak = 0;
     if (sortedDates.length > 0) {
       const today = new Date();
@@ -131,10 +131,10 @@ export const getProfile = async (req, res) => {
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
       yesterday.setHours(0, 0, 0, 0);
-      
+
       const firstActiveDate = new Date(sortedDates[0]);
       firstActiveDate.setHours(0, 0, 0, 0);
-      
+
       if (firstActiveDate.getTime() === today.getTime() || firstActiveDate.getTime() === yesterday.getTime()) {
         streak = 1;
         let expectedTime = firstActiveDate.getTime();

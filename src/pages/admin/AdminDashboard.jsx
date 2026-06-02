@@ -40,11 +40,10 @@ export default function AdminDashboard() {
   if (!stats) {
     return (
       <p
-        className={`${
-          isDark
-            ? "text-white"
-            : ""
-        }`}
+        className={`${isDark
+          ? "text-white"
+          : ""
+          }`}
       >
         Loading dashboard...
       </p>
@@ -111,11 +110,10 @@ export default function AdminDashboard() {
           opacity: 1,
           y: 0,
         }}
-        className={`rounded-3xl border p-8 shadow-sm ${
-          isDark
-            ? "bg-[#151823] border-[#1e293b]"
-            : "bg-white border-[#ECE7DF]"
-        }`}
+        className={`rounded-3xl border p-8 shadow-sm ${isDark
+          ? "bg-[#151823] border-[#1e293b]"
+          : "bg-white border-[#ECE7DF]"
+          }`}
       >
         <p className="text-[#F59E0B] font-medium">
           Welcome back,
@@ -123,11 +121,10 @@ export default function AdminDashboard() {
         </p>
 
         <h1
-          className={`text-5xl font-bold mt-3 ${
-            isDark
-              ? "text-white"
-              : "text-[#0D1B4C]"
-          }`}
+          className={`text-5xl font-bold mt-3 ${isDark
+            ? "text-white"
+            : "text-[#0D1B4C]"
+            }`}
         >
           Ready to
           Manage
@@ -136,11 +133,10 @@ export default function AdminDashboard() {
         </h1>
 
         <p
-          className={`mt-4 ${
-            isDark
-              ? "text-slate-400"
-              : "text-slate-500"
-          }`}
+          className={`mt-4 ${isDark
+            ? "text-slate-400"
+            : "text-slate-500"
+            }`}
         >
           Manage
           contests,
@@ -187,11 +183,10 @@ export default function AdminDashboard() {
                   index *
                   0.1,
               }}
-              className={`rounded-2xl border p-6 shadow-sm ${
-                isDark
-                  ? "bg-[#151823] border-[#1e293b]"
-                  : "bg-white border-[#ECE7DF]"
-              }`}
+              className={`rounded-2xl border p-6 shadow-sm ${isDark
+                ? "bg-[#151823] border-[#1e293b]"
+                : "bg-white border-[#ECE7DF]"
+                }`}
             >
               <div className="text-[#F59E0B] mb-4">
                 {
@@ -200,11 +195,10 @@ export default function AdminDashboard() {
               </div>
 
               <h2
-                className={`text-3xl font-bold ${
-                  isDark
-                    ? "text-white"
-                    : "text-[#0D1B4C]"
-                }`}
+                className={`text-3xl font-bold ${isDark
+                  ? "text-white"
+                  : "text-[#0D1B4C]"
+                  }`}
               >
                 {
                   item.value
@@ -212,11 +206,10 @@ export default function AdminDashboard() {
               </h2>
 
               <p
-                className={`mt-1 ${
-                  isDark
-                    ? "text-slate-400"
-                    : "text-slate-500"
-                }`}
+                className={`mt-1 ${isDark
+                  ? "text-slate-400"
+                  : "text-slate-500"
+                  }`}
               >
                 {
                   item.title
@@ -232,18 +225,16 @@ export default function AdminDashboard() {
 
         {/* RECENT ACTIVITY */}
         <div
-          className={`rounded-2xl border p-6 shadow-sm ${
-            isDark
-              ? "bg-[#151823] border-[#1e293b]"
-              : "bg-white border-[#ECE7DF]"
-          }`}
+          className={`rounded-2xl border p-6 shadow-sm ${isDark
+            ? "bg-[#151823] border-[#1e293b]"
+            : "bg-white border-[#ECE7DF]"
+            }`}
         >
           <h2
-            className={`text-xl font-semibold mb-5 ${
-              isDark
-                ? "text-white"
-                : ""
-            }`}
+            className={`text-xl font-semibold mb-5 ${isDark
+              ? "text-white"
+              : ""
+              }`}
           >
             Recent
             Activity
@@ -259,11 +250,10 @@ export default function AdminDashboard() {
                   key={
                     i
                   }
-                  className={`p-4 rounded-xl ${
-                    isDark
-                      ? "bg-[#1a1d2b] text-slate-300"
-                      : "bg-[#FAF8F3]"
-                  }`}
+                  className={`p-4 rounded-xl ${isDark
+                    ? "bg-[#1a1d2b] text-slate-300"
+                    : "bg-[#FAF8F3]"
+                    }`}
                 >
                   {
                     item
@@ -276,18 +266,16 @@ export default function AdminDashboard() {
 
         {/* QUICK INSIGHTS */}
         <div
-          className={`rounded-2xl border p-6 shadow-sm ${
-            isDark
-              ? "bg-[#151823] border-[#1e293b]"
-              : "bg-white border-[#ECE7DF]"
-          }`}
+          className={`rounded-2xl border p-6 shadow-sm ${isDark
+            ? "bg-[#151823] border-[#1e293b]"
+            : "bg-white border-[#ECE7DF]"
+            }`}
         >
           <h2
-            className={`text-xl font-semibold mb-5 ${
-              isDark
-                ? "text-white"
-                : ""
-            }`}
+            className={`text-xl font-semibold mb-5 ${isDark
+              ? "text-white"
+              : ""
+              }`}
           >
             Quick
             Insights

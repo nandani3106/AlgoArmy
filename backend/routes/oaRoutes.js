@@ -10,6 +10,7 @@ import {
   submitOAQuestion,
   logOASetup,
   logOAViolation,
+  detectOADevices,
 } from "../controllers/oaController.js";
 import protect from "../middleware/authMiddleware.js";
 
@@ -25,5 +26,6 @@ router.post("/:id/submit", protect, submitOATest);
 router.get("/:id/report", protect, getOAReport);
 router.post("/:id/log-setup", protect, logOASetup);
 router.post("/:id/log-violation", protect, logOAViolation);
+router.post("/:id/detect-devices", protect, detectOADevices);
 
 export default router;

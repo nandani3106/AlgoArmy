@@ -12,6 +12,7 @@ const LANGUAGE_IDS = {
   python: 71,     // Python 3.8.1
   cpp: 54,        // C++ (GCC 9.2.0)
   java: 62,       // Java (OpenJDK 13.0.1)
+  c: 50,          // C (GCC 9.2.0)
 };
 
 const JUDGE0_URL =
@@ -36,11 +37,11 @@ const normalizeOutput = (output) => {
  */
 const estimateComplexity = (code, language) => {
   const codeLower = code.toLowerCase();
-  
+
   // 1. Time Complexity Estimation
   let time = "O(1)";
   const loopCount = (codeLower.match(/for\s*\(|while\s*\(|for\s+\w+\s+in|for\s+\w+\s+of/g) || []).length;
-  
+
   if (codeLower.includes("binarysearch") || codeLower.includes("binary_search") || codeLower.match(/mid\s*=\s*/)) {
     time = "O(log n)";
   } else if (codeLower.includes("sort(") || codeLower.includes("sorted(")) {
@@ -52,7 +53,7 @@ const estimateComplexity = (code, language) => {
   } else if (codeLower.includes("recursion") || codeLower.includes("solve(") || codeLower.match(/function\s+(\w+)\(.*\)\s*\{.*(\1)\(.*\)/s)) {
     time = "O(2ⁿ)";
   }
-  
+
   // 2. Space Complexity Estimation
   let space = "O(1)";
   if (codeLower.includes("map") || codeLower.includes("set") || codeLower.includes("dict") || codeLower.includes("new array") || codeLower.includes(".push(") || codeLower.includes("append(")) {

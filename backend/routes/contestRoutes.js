@@ -13,6 +13,7 @@ import {
   createContest,
   updateContest,
   deleteContest,
+  getContestSession,
 } from "../controllers/contestController.js";
 
 const router = express.Router();
@@ -24,6 +25,7 @@ router.get("/:id/problems", getContestProblems);
 router.get("/:id/leaderboard", getContestLeaderboard);
 
 // Protected routes (Candidate)
+router.get("/:id/session", protect, getContestSession);
 router.post("/:id/register", protect, registerForContest);
 router.post("/:id/run", protect, runContestCode);
 router.post("/:id/submit", protect, submitContestSolution);

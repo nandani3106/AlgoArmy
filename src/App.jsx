@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { ProctoringProvider } from './contexts/ProctoringContext';
 
 // =======================
 // Candidate Panel Imports
@@ -53,86 +54,85 @@ import AdminSettings from './pages/admin/Settings';
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        {/* =======================
-            PUBLIC ROUTES
-        ======================= */}
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
+    <ProctoringProvider>
+      <Router>
+        <Routes>
+          {/* =======================
+              PUBLIC ROUTES
+          ======================= */}
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
 
-        {/* =======================
-            CANDIDATE PANEL ROUTES
-        ======================= */}
-        <Route path="/dashboard" element={<Dashboard />} />
+          {/* =======================
+              CANDIDATE PANEL ROUTES
+          ======================= */}
+          <Route path="/dashboard" element={<Dashboard />} />
 
-        {/* Contest Module */}
-        <Route path="/contests" element={<Contests />} />
-        <Route path="/contests/:id" element={<ContestDetails />} />
-        <Route
-          path="/workspace/:contestId/:questionId"
-          element={<CodingWorkspace />}
-        />
-        <Route path="/results/contest/:id" element={<ContestResults />} />
-        <Route
-          path="/leaderboard/contest/:id"
-          element={<ContestLeaderboard />}
-        />
+          {/* Contest Module */}
+          <Route path="/contests" element={<Contests />} />
+          <Route path="/contests/:id" element={<ContestDetails />} />
+          <Route
+            path="/workspace/:contestId/:questionId"
+            element={<CodingWorkspace />}
+          />
+          <Route path="/results/contest/:id" element={<ContestResults />} />
+          <Route
+            path="/leaderboard/contest/:id"
+            element={<ContestLeaderboard />}
+          />
 
-        {/* General Leaderboard */}
-        <Route path="/leaderboard" element={<Leaderboard />} />
+          {/* General Leaderboard */}
+          <Route path="/leaderboard" element={<Leaderboard />} />
 
-        {/* OA Module */}
-        <Route path="/oa" element={<OAList />} />
-        <Route path="/oa/:id" element={<OADetails />} />
-        <Route
-          path="/oa/:id/permissions"
-          element={<OAPermissionCheck />}
-        />
-        <Route path="/oa/:id/workspace" element={<OAWorkspace />} />
-        <Route path="/oa/:id/submitted" element={<OASubmitted />} />
-        <Route path="/results/oa/:id" element={<OAReport />} />
-        <Route path="/oa/:id/report" element={<OAReport />} />
+          {/* OA Module */}
+          <Route path="/oa" element={<OAList />} />
+          <Route path="/oa/:id" element={<OADetails />} />
+          <Route
+            path="/oa/:id/permissions"
+            element={<OAPermissionCheck />}
+          />
+          <Route path="/oa/:id/workspace" element={<OAWorkspace />} />
+          <Route path="/oa/:id/submitted" element={<OASubmitted />} />
+          <Route path="/results/oa/:id" element={<OAReport />} />
+          <Route path="/oa/:id/report" element={<OAReport />} />
 
-        {/* AI Interview Module */}
-        <Route path="/interviews" element={<InterviewList />} />
-        {/* Support both with and without ID for compatibility */}
-        <Route path="/interviews/instructions" element={<InterviewInstructions />} />
-        <Route path="/interviews/:id/instructions" element={<InterviewInstructions />} />
-        <Route path="/interviews/room" element={<InterviewRoom />} />
-        <Route path="/interviews/:id/room" element={<InterviewRoom />} />
-        <Route path="/interviews/completed" element={<InterviewCompleted />} />
-        
-        <Route
-          path="/results/interview/:id"
-          element={<InterviewReport />}
-        />
+          {/* AI Interview Module */}
+          <Route path="/interviews" element={<InterviewList />} />
+          {/* Support both with and without ID for compatibility */}
+          <Route path="/interviews/instructions" element={<InterviewInstructions />} />
+          <Route path="/interviews/:id/instructions" element={<InterviewInstructions />} />
+          <Route path="/interviews/room" element={<InterviewRoom />} />
+          <Route path="/interviews/:id/room" element={<InterviewRoom />} />
+          <Route path="/interviews/completed" element={<InterviewCompleted />} />
 
-        {/* Results Module */}
-        <Route path="/results" element={<Results />} />
-        <Route path="/results/:type/:id" element={<ResultDetails />} />
+          <Route path="/results/interview/:id" element={<InterviewReport />} />
 
-        {/* Profile Module */}
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/profile/edit" element={<EditProfile />} />
+          {/* Results Module */}
+          <Route path="/results" element={<Results />} />
+          <Route path="/results/:type/:id" element={<ResultDetails />} />
 
-        {/* =======================
-            ADMIN PANEL ROUTES
-        ======================= */}
-        <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<AdminDashboard />} />
-          <Route path="dashboard" element={<AdminDashboard />} />
-          <Route path="users" element={<Users />} />
-          <Route path="contests" element={<AdminContests />} />
-          <Route path="oa-tests" element={<OATests />} />
-          <Route path="interviews" element={<AdminInterviews />} />
-          <Route path="problems" element={<Problems />} />
-          <Route path="analytics" element={<Analytics />} />
-          <Route path="settings" element={<AdminSettings />} />
-        </Route>
-      </Routes>
-    </Router>
+          {/* Profile Module */}
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/profile/edit" element={<EditProfile />} />
+
+          {/* =======================
+              ADMIN PANEL ROUTES
+          ======================= */}
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="dashboard" element={<AdminDashboard />} />
+            <Route path="users" element={<Users />} />
+            <Route path="contests" element={<AdminContests />} />
+            <Route path="oa-tests" element={<OATests />} />
+            <Route path="interviews" element={<AdminInterviews />} />
+            <Route path="problems" element={<Problems />} />
+            <Route path="analytics" element={<Analytics />} />
+            <Route path="settings" element={<AdminSettings />} />
+          </Route>
+        </Routes>
+      </Router>
+    </ProctoringProvider>
   );
 }
 

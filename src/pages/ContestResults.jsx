@@ -46,6 +46,7 @@ const ContestResults = () => {
     }
   });
   const totalScore = Object.values(problemScores).reduce((sum, val) => sum + val, 0);
+  const accepted = statsData?.correctQuestions || 0;
 
   const stats = [
     { label: 'Total Score', value: totalScore, icon: Award, color: 'text-blue-500', bg: 'bg-blue-50' },
@@ -97,6 +98,7 @@ const ContestResults = () => {
                       <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Result</th>
                       <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Score</th>
                       <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Submitted</th>
+                      <th className="px-4 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-orange-100/30">
@@ -110,12 +112,12 @@ const ContestResults = () => {
                         <td className="px-4 py-6 font-black text-[#0B1B3B]">{s.score}</td>
                         <td className="px-4 py-6 text-sm text-slate-500 font-medium">{new Date(s.submittedAt).toLocaleString()}</td>
                         <td className="px-4 py-6">
-                           <button 
+                          <button
                             onClick={() => navigate(`/results/contest/${id}`)}
                             className="p-2 text-slate-400 hover:text-[#0B1B3B] hover:bg-slate-100 rounded-lg transition-all"
-                           >
-                              <ChevronRight size={18} />
-                           </button>
+                          >
+                            <ChevronRight size={18} />
+                          </button>
                         </td>
                       </tr>
                     )) : (

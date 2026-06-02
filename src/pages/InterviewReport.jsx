@@ -55,7 +55,7 @@ const InterviewReport = () => {
       const canvas = await html2canvas(element, {
         scale: 1.5,
         useCORS: true,
-        backgroundColor: '#fafaf9',
+        backgroundColor: '#ffffff',
         windowWidth: element.scrollWidth,
         windowHeight: element.scrollHeight
       });
@@ -133,7 +133,7 @@ const InterviewReport = () => {
         </div>
 
         {/* Printable Area */}
-        <div ref={reportRef} className="space-y-10 bg-[#fafaf9] p-8 md:p-12 rounded-[2.5rem] border border-slate-200/60 shadow-sm">
+        <div ref={reportRef} className="space-y-10 bg-white p-8 md:p-12 rounded-[2.5rem] border border-slate-200/60 shadow-sm">
           {/* PDF Report Header with Logo */}
           <div className="flex items-center justify-between pb-8 border-b border-slate-200">
             <BrandLogo size="md" showText={true} clickable={false} />
@@ -182,7 +182,7 @@ const InterviewReport = () => {
               <DashboardCard title="Key Strengths" icon={TrendingUp}>
                 <div className="space-y-4">
                   {(report.strengths || []).map((s, i) => (
-                    <div key={i} className="flex gap-4 p-4 rounded-2xl bg-green-50/50 border border-green-100">
+                    <div key={i} className="flex gap-4 p-4 rounded-2xl bg-green-50/50 dark:bg-green-950/20 border border-green-100 dark:border-green-900/30">
                       <CheckCircle className="text-green-500 shrink-0 mt-1" size={18} />
                       <p className="text-sm font-bold text-[#0B1B3B] leading-relaxed">{s}</p>
                     </div>
@@ -194,7 +194,7 @@ const InterviewReport = () => {
               <DashboardCard title="Areas to Improve" icon={AlertCircle}>
                 <div className="space-y-4">
                   {(report.improvements || []).map((s, i) => (
-                    <div key={i} className="flex gap-4 p-4 rounded-2xl bg-orange-50/50 border border-orange-100">
+                    <div key={i} className="flex gap-4 p-4 rounded-2xl bg-orange-50/50 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900/30">
                       <AlertCircle className="text-orange-500 shrink-0 mt-1" size={18} />
                       <p className="text-sm font-bold text-[#0B1B3B] leading-relaxed">{s}</p>
                     </div>

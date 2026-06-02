@@ -1,4 +1,9 @@
 import { GoogleGenAI } from "@google/genai";
+import fs from "fs";
+import path from "path";
+import ort from "onnxruntime-node";
+import sharp from "sharp";
+import axios from "axios";
 
 const MODEL_NAME = "gemini-2.0-flash"; // Using a stable 2.0 version
 
@@ -333,5 +338,190 @@ Respond with JSON only.
       improvements,
       feedback: feedbackList
     };
+  }
+}
+
+const MODEL_URL = 'https://huggingface.co/Kalray/yolov8/resolve/main/yolov8n.onnx';
+const MODEL_PATH = path.join(import.meta.dirname, '..', 'yolov8n.onnx');
+
+async function downloadModel() {
+  if (fs.existsSync(MODEL_PATH)) {
+    try {
+      const stats = fs.statSync(MODEL_PATH);
+      if (stats.size > 10000000) { // ~12.8MB expected
+        return;
+      }
+      console.log(`[YOLO] Existing model file is corrupt or incomplete (${stats.size} bytes). Re-downloading...`);
+      fs.unlinkSync(MODEL_PATH);
+    } catch (e) {
+      console.error(`[YOLO] Failed verifying/deleting existing model file: ${e.message}`);
+    }
+  }
+  console.log(`[YOLO] Downloading YOLOv8n model from ${MODEL_URL}...`);
+  const response = await axios.get(MODEL_URL, { responseType: 'stream' });
+  const writer = fs.createWriteStream(MODEL_PATH);
+  response.data.pipe(writer);
+  return new Promise((resolve, reject) => {
+    writer.on('finish', resolve);
+    writer.on('error', reject);
+  });
+}
+
+function iou(box1, box2) {
+  const x1 = Math.max(box1[0], box2[0]);
+  const y1 = Math.max(box1[1], box2[1]);
+  const x2 = Math.min(box1[2], box2[2]);
+  const y2 = Math.min(box1[3], box2[3]);
+
+  const intersection = Math.max(0, x2 - x1) * Math.max(0, y2 - y1);
+  const area1 = (box1[2] - box1[0]) * (box1[3] - box1[1]);
+  const area2 = (box2[2] - box2[0]) * (box2[3] - box2[1]);
+
+  return intersection / (area1 + area2 - intersection);
+}
+
+function nms(boxes, iouThreshold = 0.45) {
+  const sorted = [...boxes].sort((a, b) => b.score - a.score);
+  const selected = [];
+  for (const box of sorted) {
+    let keep = true;
+    for (const active of selected) {
+      if (iou(box.bbox, active.bbox) > iouThreshold) {
+        keep = false;
+        break;
+      }
+    }
+    if (keep) {
+      selected.push(box);
+    }
+  }
+  return selected;
+}
+
+const CLASS_NAMES = [
+  "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat", "traffic light",
+  "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat", "dog", "horse", "sheep", "cow",
+  "elephant", "bear", "zebra", "giraffe", "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee",
+  "skis", "snowboard", "sports ball", "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket", "bottle",
+  "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple", "sandwich", "orange",
+  "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch", "potted plant", "bed",
+  "dining table", "toilet", "tv", "laptop", "mouse", "remote", "keyboard", "cell phone", "microwave", "oven",
+  "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier",
+  "toothbrush"
+];
+
+let yoloSession = null;
+
+/**
+ * Detect unauthorized devices (like phones, tablets, smart watches) in a webcam frame.
+ * Allows pen and paper.
+ * @param {string} base64Image - Base64 encoded image string (without data:image/jpeg;base64 prefix)
+ */
+export async function detectDevicesInImage(base64Image) {
+  try {
+    await downloadModel();
+
+    if (!yoloSession) {
+      console.log("[YOLO] Loading YOLOv8n session...");
+      yoloSession = await ort.InferenceSession.create(MODEL_PATH);
+      console.log("[YOLO] YOLOv8n session loaded successfully!");
+    }
+
+    const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, "");
+    const imgBuffer = Buffer.from(base64Data, 'base64');
+
+    // Preprocess image with sharp
+    const { data, info } = await sharp(imgBuffer)
+      .resize(640, 640, { fit: 'fill' })
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+
+    // Convert raw RGB bytes to Float32 array of shape [1, 3, 640, 640]
+    const float32Data = new Float32Array(3 * 640 * 640);
+    for (let i = 0; i < 640 * 640; i++) {
+      float32Data[i] = data[i * 3] / 255.0;           // R
+      float32Data[640 * 640 + i] = data[i * 3 + 1] / 255.0; // G
+      float32Data[2 * 640 * 640 + i] = data[i * 3 + 2] / 255.0; // B
+    }
+
+    const inputTensor = new ort.Tensor('float32', float32Data, [1, 3, 640, 640]);
+
+    // Run inference
+    const outputs = await yoloSession.run({ images: inputTensor });
+    const outputKey = Object.keys(outputs)[0];
+    const outputTensor = outputs[outputKey];
+    const outputData = outputTensor.data; 
+    const dims = outputTensor.dims; // [1, 84, 8400]
+
+    const numClasses = dims[1] - 4; // 80 classes
+    const numCandidates = dims[2];  // 8400 candidates
+
+    const confidenceThreshold = 0.3;
+    const rawDetections = [];
+
+    // Transpose and process candidates
+    for (let i = 0; i < numCandidates; i++) {
+      let maxScore = -1;
+      let classId = -1;
+      for (let c = 0; c < numClasses; c++) {
+        const score = outputData[(4 + c) * numCandidates + i];
+        if (score > maxScore) {
+          maxScore = score;
+          classId = c;
+        }
+      }
+
+      if (maxScore > confidenceThreshold) {
+        const xc = outputData[0 * numCandidates + i];
+        const yc = outputData[1 * numCandidates + i];
+        const w = outputData[2 * numCandidates + i];
+        const h = outputData[3 * numCandidates + i];
+
+        const x1 = xc - w / 2;
+        const y1 = yc - h / 2;
+        const x2 = xc + w / 2;
+        const y2 = yc + h / 2;
+
+        const label = CLASS_NAMES[classId];
+
+        rawDetections.push({
+          class: label,
+          score: maxScore,
+          bbox: [x1, y1, x2, y2]
+        });
+      }
+    }
+
+    // Apply NMS
+    const detections = nms(rawDetections, 0.45);
+
+    // Print logs
+    detections.forEach(det => {
+      console.log(`[YOLO] Detected: ${det.class} (${det.score.toFixed(2)})`);
+    });
+
+    // Filter for target classes: cell phone, laptop, tv, clock
+    const targetClasses = ['cell phone', 'laptop', 'tv', 'clock'];
+    const unauthorized = detections.filter(det => targetClasses.includes(det.class));
+
+    if (unauthorized.length > 0) {
+      const primary = unauthorized[0];
+      return {
+        deviceDetected: true,
+        deviceName: primary.class,
+        explanation: `Detected a ${primary.class} with ${Math.round(primary.score * 100)}% confidence in the camera frame.`,
+        detections: detections
+      };
+    }
+
+    return {
+      deviceDetected: false,
+      deviceName: "",
+      explanation: "",
+      detections: detections
+    };
+  } catch (err) {
+    console.error("[YOLO] detectDevicesInImage failed:", err.message);
+    return { deviceDetected: false, deviceName: "", explanation: "", detections: [] };
   }
 }

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  Play, Send, Clock, ChevronLeft, ChevronRight, Settings, 
-  MessageSquare, Zap, CheckCircle, Loader2, Maximize2, 
+import {
+  Play, Send, Clock, ChevronLeft, ChevronRight, Settings,
+  MessageSquare, Zap, CheckCircle, Loader2, Maximize2,
   Minimize2, RotateCcw, Copy, Download, Save, Moon, Sun, Terminal,
   Layout, ListChecks, ArrowLeft
 } from 'lucide-react';
@@ -40,7 +40,7 @@ const CodingWorkspace = () => {
   const [isRunning, setIsRunning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
-  
+
   // Custom workspace parameters
   const [theme, setTheme] = useState(() => localStorage.getItem('algoarmy-theme') || 'vs-dark');
   const [fontSize, setFontSize] = useState(14);
@@ -48,12 +48,13 @@ const CodingWorkspace = () => {
   const [customInput, setCustomInput] = useState('');
   const [isCustomInputActive, setIsCustomInputActive] = useState(false);
   const [submissions, setSubmissions] = useState([]);
-  
+
   // Mobile rendering states
   const [activeMobileTab, setActiveMobileTab] = useState('problem'); // 'problem', 'editor', 'console'
   const [isMobile, setIsMobile] = useState(false);
 
   const [contest, setContest] = useState(null);
+  const [contestSession, setContestSession] = useState(null);
   const [remainingTime, setRemainingTime] = useState(null);
 
   const getStorageKey = useCallback((qId, lang) => `contest-${qId}-${lang}`, []);
@@ -116,6 +117,20 @@ const CodingWorkspace = () => {
           if (currentP && currentP._id !== questionId) {
             navigate(`/workspace/${contestId}/${currentP._id}`, { replace: true });
           }
+
+          if (token) {
+            try {
+              const sessionRes = await fetch(`${API_BASE}/api/contests/${contestId}/session`, {
+                headers: { Authorization: `Bearer ${token}` }
+              });
+              const sessionData = await sessionRes.json();
+              if (sessionData.success && sessionData.registration) {
+                setContestSession(sessionData.registration);
+              }
+            } catch (err) {
+              console.error("Session load failed", err);
+            }
+          }
         }
       } catch (e) { console.error(e); }
       finally { setLoading(false); }
@@ -139,17 +154,16 @@ const CodingWorkspace = () => {
   }, [code, language, questionId, getStorageKey]);
 
   useEffect(() => {
-    if (!contest || !contest.startTime || !contest.durationMinutes) return;
+    if (!contest || !contest.durationMinutes) return;
 
     const updateTimer = () => {
-      const startTime = new Date(contest.startTime).getTime();
+      // Use user's registration time if available, fallback to contest start time
+      const startTimeStr = contestSession?.registeredAt || contest.startTime;
+      if (!startTimeStr) return;
+
+      const startTime = new Date(startTimeStr).getTime();
       const contestEndTime = startTime + (contest.durationMinutes * 60 * 1000);
       const remTime = contestEndTime - Date.now();
-
-      console.log("Contest Start Time:", contest.startTime);
-      console.log("Contest Duration:", contest.durationMinutes);
-      console.log("Contest End Time:", new Date(contestEndTime));
-      console.log("Remaining Time:", remTime);
 
       setRemainingTime(remTime);
     };
@@ -157,7 +171,7 @@ const CodingWorkspace = () => {
     updateTimer();
     const timerId = setInterval(updateTimer, 1000);
     return () => clearInterval(timerId);
-  }, [contest]);
+  }, [contest, contestSession]);
 
   const formatTime = (ms) => {
     if (ms === null || ms === undefined) return "00:00:00";
@@ -176,29 +190,28 @@ const CodingWorkspace = () => {
 
   const handleRun = async () => {
     if (isEnded) {
-      toast.error("Contest has ended. Submissions are disabled.");
-      return;
+      toast.warning("Contest has ended, but running code for evaluation.");
     }
     if (!questionId || isRunning) return;
-    setIsRunning(true); 
+    setIsRunning(true);
     setIsSubmitting(false);
-    setOutput(''); 
-    setVerdict(''); 
-    setTestCases(null); 
-    setExecutionMetrics(null); 
+    setOutput('');
+    setVerdict('');
+    setTestCases(null);
+    setExecutionMetrics(null);
     setCompilerOutput('');
-    
+
     if (isMobile) setActiveMobileTab('console');
 
     try {
       const token = localStorage.getItem('token');
-      const payload = { 
-        problemId: questionId, 
-        code, 
+      const payload = {
+        problemId: questionId,
+        code,
         language,
         ...(isCustomInputActive && { customInput })
       };
-      
+
       const res = await fetch(`${API_BASE}/api/contests/${contestId}/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
@@ -206,14 +219,14 @@ const CodingWorkspace = () => {
       });
       const data = await res.json();
       setIsRunning(false);
-      
+
       if (data.success) {
         setVerdict(data.verdict);
         setTestCases(data.detailedResults);
         setExecutionMetrics({ time: data.executionTime, memory: data.memoryUsed });
         setComplexityEstimate(data.complexityEstimate);
         setCompilerOutput(data.compilerOutput);
-        
+
         const firstFailed = data.detailedResults.find(r => !r.passed);
         if (firstFailed) setOutput(firstFailed.actual);
         else setOutput(data.detailedResults[0]?.actual || "No output recorded");
@@ -228,20 +241,19 @@ const CodingWorkspace = () => {
 
   const handleSubmit = async () => {
     if (isEnded) {
-      toast.error("Contest has ended. Submissions are disabled.");
-      return;
+      toast.warning("Contest has ended, but submitting solution for evaluation.");
     }
     if (!questionId || isRunning || isSubmitting) return;
     const token = localStorage.getItem('token');
-    setIsSubmitting(true); 
-    setIsRunning(true); 
-    setOutput(''); 
-    setVerdict(''); 
+    setIsSubmitting(true);
+    setIsRunning(true);
+    setOutput('');
+    setVerdict('');
     setTestCases(null);
     setCompilerOutput('');
-    
+
     if (isMobile) setActiveMobileTab('console');
-    
+
     try {
       const res = await fetch(`${API_BASE}/api/contests/${contestId}/submit`, {
         method: 'POST',
@@ -250,7 +262,7 @@ const CodingWorkspace = () => {
       });
 
       const data = await res.json();
-      setIsSubmitting(false); 
+      setIsSubmitting(false);
       setIsRunning(false);
 
       if (data.success) {
@@ -260,20 +272,20 @@ const CodingWorkspace = () => {
         setExecutionMetrics({ time: sub.executionTime, memory: sub.memoryUsed });
         setComplexityEstimate(sub.complexityEstimate);
         setCompilerOutput(sub.compilerOutput);
-        
+
         if (sub.verdict === 'Accepted') {
           toast.success("Solution Accepted! 100 Points.");
         } else {
           toast.error(`Verdict: ${sub.verdict}`);
         }
-        
+
         // Refresh past submissions log
         fetchSubmissions();
       } else {
         toast.error(data.message || "Submission failed");
       }
     } catch (e) {
-      setIsSubmitting(false); 
+      setIsSubmitting(false);
       setIsRunning(false);
       toast.error("Submission failed");
     }
@@ -314,9 +326,9 @@ const CodingWorkspace = () => {
   const editorHeaderControls = (
     <div className="h-12 bg-[#090b11] border-b border-[#1e293b] px-4 flex items-center justify-between shrink-0 select-none text-slate-300">
       <div className="flex items-center gap-3">
-        <select 
-          value={language} 
-          onChange={(e) => setLanguage(e.target.value)} 
+        <select
+          value={language}
+          onChange={(e) => setLanguage(e.target.value)}
           className="bg-[#1a1c2e] border border-[#2b3052] rounded-xl px-3 py-1 text-white text-[10px] font-black uppercase tracking-widest outline-none hover:bg-[#252a47] transition-all cursor-pointer"
         >
           <option value="javascript">JavaScript</option>
@@ -325,20 +337,20 @@ const CodingWorkspace = () => {
           <option value="java">Java</option>
           <option value="c">C</option>
         </select>
-        
+
         <div className="h-4 w-px bg-[#1e293b]" />
-        
+
         {/* Font size selectors */}
         <div className="flex items-center gap-1.5">
           <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 mr-1">Font</span>
-          <button 
+          <button
             onClick={() => setFontSize(prev => Math.max(10, prev - 1))}
             className="w-5 h-5 rounded bg-[#1a1c2e] hover:bg-[#252a47] flex items-center justify-center text-xs font-bold transition-all border border-[#2b3052]"
           >
             -
           </button>
           <span className="text-xs font-mono font-bold w-4 text-center">{fontSize}</span>
-          <button 
+          <button
             onClick={() => setFontSize(prev => Math.min(24, prev + 1))}
             className="w-5 h-5 rounded bg-[#1a1c2e] hover:bg-[#252a47] flex items-center justify-center text-xs font-bold transition-all border border-[#2b3052]"
           >
@@ -350,11 +362,11 @@ const CodingWorkspace = () => {
 
         {/* Minimap toggle */}
         <label className="flex items-center gap-2 cursor-pointer select-none">
-          <input 
-            type="checkbox" 
-            checked={minimapEnabled} 
+          <input
+            type="checkbox"
+            checked={minimapEnabled}
             onChange={(e) => setMinimapEnabled(e.target.checked)}
-            className="sr-only" 
+            className="sr-only"
           />
           <div className={`w-7 h-3.5 rounded-full transition-colors ${minimapEnabled ? 'bg-orange-500' : 'bg-slate-700'}`} />
           <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Minimap</span>
@@ -362,7 +374,7 @@ const CodingWorkspace = () => {
       </div>
 
       <div className="flex items-center gap-2.5">
-        <button 
+        <button
           onClick={() => setTheme(theme === 'vs-dark' ? 'light' : 'vs-dark')}
           className="p-1.5 bg-[#1a1c2e] border border-[#2b3052] rounded-lg text-slate-400 hover:text-white transition-all"
           title="Toggle Editor Theme"
@@ -370,7 +382,7 @@ const CodingWorkspace = () => {
           {theme === 'vs-dark' ? <Moon size={14} /> : <Sun size={14} />}
         </button>
 
-        <button 
+        <button
           onClick={() => {
             if (window.confirm("Reset editor to starter templates?")) {
               setCode(STARTER_TEMPLATES[language]);
@@ -382,7 +394,7 @@ const CodingWorkspace = () => {
           <RotateCcw size={14} />
         </button>
 
-        <button 
+        <button
           onClick={() => setIsFullScreen(!isFullScreen)}
           className="p-1.5 bg-[#1a1c2e] border border-[#2b3052] rounded-lg text-slate-400 hover:text-white transition-all"
           title="Toggle Fullscreen"
@@ -395,7 +407,7 @@ const CodingWorkspace = () => {
 
   return (
     <div className={`h-screen w-full bg-[#090b11] flex flex-col overflow-hidden ${isFullScreen ? 'fixed inset-0 z-[9999]' : ''}`}>
-      
+
       {/* Premium Header Workspace */}
       <header className="h-14 bg-[#0B1B3B] border-b border-white/10 px-6 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-6">
@@ -403,9 +415,9 @@ const CodingWorkspace = () => {
             <BrandLogo size="sm" showText={false} clickable={false} />
             <span className="text-white/40 group-hover:text-white transition-colors"><ChevronLeft size={16} /></span>
           </div>
-          
+
           <div className="h-6 w-px bg-white/10" />
-          
+
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <ListChecks size={16} className="text-orange-500" />
@@ -423,32 +435,32 @@ const CodingWorkspace = () => {
         <div className="flex items-center gap-3">
           {/* Problem Selector Dropdown */}
           <div className="relative group">
-             <button className="flex items-center gap-2 px-4 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white/70 text-[10px] font-black uppercase tracking-widest transition-all">
-                <Layout size={14} /> Change Problem
-             </button>
-             <div className="absolute top-full right-0 mt-2 w-64 bg-[#0B1B3B] border border-white/10 rounded-2xl shadow-2xl invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all z-50 p-2 overflow-hidden">
-                {problems.map((p, idx) => (
-                   <button 
-                     key={p._id}
-                     onClick={() => navigate(`/workspace/${contestId}/${p._id}`)}
-                     className={`w-full text-left p-3 rounded-xl flex items-center gap-3 transition-all ${p._id === questionId ? 'bg-orange-500 text-white' : 'hover:bg-white/5 text-slate-400'}`}
-                   >
-                      <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black ${p._id === questionId ? 'bg-white/20' : 'bg-white/5'}`}>{String.fromCharCode(65+idx)}</div>
-                      <span className="text-[10px] font-bold truncate">{p.title}</span>
-                   </button>
-                ))}
-             </div>
+            <button className="flex items-center gap-2 px-4 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white/70 text-[10px] font-black uppercase tracking-widest transition-all">
+              <Layout size={14} /> Change Problem
+            </button>
+            <div className="absolute top-full right-0 mt-2 w-64 bg-[#0B1B3B] border border-white/10 rounded-2xl shadow-2xl invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all z-50 p-2 overflow-hidden">
+              {problems.map((p, idx) => (
+                <button
+                  key={p._id}
+                  onClick={() => navigate(`/workspace/${contestId}/${p._id}`)}
+                  className={`w-full text-left p-3 rounded-xl flex items-center gap-3 transition-all ${p._id === questionId ? 'bg-orange-500 text-white' : 'hover:bg-white/5 text-slate-400'}`}
+                >
+                  <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black ${p._id === questionId ? 'bg-white/20' : 'bg-white/5'}`}>{String.fromCharCode(65 + idx)}</div>
+                  <span className="text-[10px] font-bold truncate">{p.title}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="flex items-center gap-2 ml-4">
-            <button onClick={handleRun} disabled={isRunning || isEnded} className="px-5 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/10 flex items-center gap-2 transition-all disabled:opacity-50">
+            <button onClick={handleRun} disabled={isRunning} className="px-5 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/10 flex items-center gap-2 transition-all disabled:opacity-50">
               <Play size={12} fill="currentColor" /> {isRunning && !isSubmitting ? 'Running...' : 'Run'}
             </button>
-            <button onClick={handleSubmit} disabled={isRunning || isSubmitting || isEnded} className="px-5 py-2 rounded-xl bg-orange-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-orange-700 flex items-center gap-2 transition-all disabled:opacity-50 shadow-lg shadow-orange-900/20">
+            <button onClick={handleSubmit} disabled={isRunning || isSubmitting} className="px-5 py-2 rounded-xl bg-orange-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-orange-700 flex items-center gap-2 transition-all disabled:opacity-50 shadow-lg shadow-orange-900/20">
               <Send size={12} fill="currentColor" /> {isSubmitting ? 'Submitting...' : 'Submit'}
             </button>
             <button onClick={handleFinish} className="px-5 py-2 rounded-xl bg-white/5 border border-white/10 text-white/60 text-[10px] font-black uppercase tracking-widest hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/20 flex items-center gap-2 transition-all">
-               Finish
+              Finish
             </button>
           </div>
         </div>
@@ -457,20 +469,20 @@ const CodingWorkspace = () => {
       {/* MOBILE HEADER BUTTONS */}
       {isMobile && (
         <div className="flex items-center justify-around bg-[#0a0d16] border-b border-[#1e293b] text-[10px] font-black uppercase tracking-widest text-slate-400 shrink-0 select-none">
-          <button 
-            onClick={() => setActiveMobileTab('problem')} 
+          <button
+            onClick={() => setActiveMobileTab('problem')}
             className={`py-3.5 flex-1 text-center border-b-2 transition-all ${activeMobileTab === 'problem' ? 'text-orange-500 border-orange-500 bg-white/5' : 'border-transparent'}`}
           >
             Problem Description
           </button>
-          <button 
-            onClick={() => setActiveMobileTab('editor')} 
+          <button
+            onClick={() => setActiveMobileTab('editor')}
             className={`py-3.5 flex-1 text-center border-b-2 transition-all ${activeMobileTab === 'editor' ? 'text-orange-500 border-orange-500 bg-white/5' : 'border-transparent'}`}
           >
             Code Editor
           </button>
-          <button 
-            onClick={() => setActiveMobileTab('console')} 
+          <button
+            onClick={() => setActiveMobileTab('console')}
             className={`py-3.5 flex-1 text-center border-b-2 transition-all ${activeMobileTab === 'console' ? 'text-orange-500 border-orange-500 bg-white/5' : 'border-transparent'}`}
           >
             Results Console
@@ -487,15 +499,15 @@ const CodingWorkspace = () => {
                 <ProblemPanel problem={currentProblem} />
               </div>
             )}
-            
+
             {activeMobileTab === 'editor' && (
               <div className="flex-1 flex flex-col overflow-hidden relative">
                 {editorHeaderControls}
                 <div className="flex-1 overflow-hidden relative">
-                  <CodeEditor 
-                    code={code} 
-                    onChange={setCode} 
-                    language={language} 
+                  <CodeEditor
+                    code={code}
+                    onChange={setCode}
+                    language={language}
                     theme={theme}
                     fontSize={fontSize}
                     minimapEnabled={minimapEnabled}
@@ -508,7 +520,7 @@ const CodingWorkspace = () => {
 
             {activeMobileTab === 'console' && (
               <div className="flex-1 overflow-hidden">
-                <OutputPanel 
+                <OutputPanel
                   output={output}
                   verdict={verdict}
                   testCases={testCases}
@@ -528,7 +540,7 @@ const CodingWorkspace = () => {
             )}
           </div>
         ) : (
-          <WorkspaceLayout 
+          <WorkspaceLayout
             leftPanel={
               <div className="h-full bg-[#0b0f19] select-none">
                 <ProblemPanel problem={currentProblem} />
@@ -538,10 +550,10 @@ const CodingWorkspace = () => {
               <div className="h-full flex flex-col overflow-hidden">
                 {editorHeaderControls}
                 <div className="flex-1 overflow-hidden relative">
-                  <CodeEditor 
-                    code={code} 
-                    onChange={setCode} 
-                    language={language} 
+                  <CodeEditor
+                    code={code}
+                    onChange={setCode}
+                    language={language}
                     theme={theme}
                     fontSize={fontSize}
                     minimapEnabled={minimapEnabled}
@@ -553,7 +565,7 @@ const CodingWorkspace = () => {
             }
             rightBottomPanel={
               <div className="h-full overflow-hidden">
-                <OutputPanel 
+                <OutputPanel
                   output={output}
                   verdict={verdict}
                   testCases={testCases}

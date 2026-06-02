@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
+import {
   Shield, ChevronLeft, Play, Loader2, Award, Info, RefreshCw, AlertTriangle
 } from 'lucide-react';
 import MainLayout from '../components/MainLayout';
@@ -8,6 +8,8 @@ import GradientButton from '../components/GradientButton';
 import PermissionChecklist from '../components/PermissionChecklist';
 import BrandLogo from '../components/BrandLogo';
 import { toast } from 'sonner';
+import { loadTrackingScripts, startFaceTracking } from '../utils/faceTracking';
+import { useProctoring } from '../contexts/ProctoringContext';
 
 const API_BASE = 'http://localhost:5000';
 
@@ -15,11 +17,21 @@ const OAPermissionCheck = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const videoRef = useRef(null);
-  
+  const consecutiveFramesRef = useRef(0);
+  const isProceedingToWorkspace = useRef(false);
+
+  const {
+    cameraStream, setCameraStream,
+    micStream, setMicStream,
+    screenStream, setScreenStream
+  } = useProctoring();
+
   const [checking, setChecking] = useState(false);
   const [oa, setOa] = useState(null);
   const [loading, setLoading] = useState(true);
   const [stream, setStream] = useState(null);
+  const [faceStatus, setFaceStatus] = useState('');
+  const [videoReady, setVideoReady] = useState(false);
 
   const [permissions, setPermissions] = useState({
     camera: 'pending',
@@ -52,43 +64,190 @@ const OAPermissionCheck = () => {
 
   // Live video preview ref management
   useEffect(() => {
-    if (permissions.camera === 'granted') {
-      navigator.mediaDevices.getUserMedia({ video: true })
-        .then(str => {
-          setStream(str);
-          if (videoRef.current) {
-            videoRef.current.srcObject = str;
-          }
-        })
-        .catch(err => {
-          console.error("Camera preview load error:", err);
-        });
-    }
+    const setupVideo = async () => {
+      if (!stream || !videoRef.current) return;
 
-    return () => {
-      if (stream) {
-        stream.getTracks().forEach(t => t.stop());
+      videoRef.current.srcObject = stream;
+
+      try {
+        await videoRef.current.play();
+        setVideoReady(true);
+        console.log("Video Ready");
+      } catch (err) {
+        console.error(err);
       }
     };
-  }, [permissions.camera]);
+
+    setupVideo();
+  }, [stream]);
+
+  const streamRef = useRef(null);
+  const screenStreamRef = useRef(null);
+
+  // Sync stream refs for unmount cleanup
+  useEffect(() => {
+    streamRef.current = stream;
+  }, [stream]);
+
+  useEffect(() => {
+    screenStreamRef.current = screenStream;
+  }, [screenStream]);
+
+  // Clean up stream on unmount ONLY if we are NOT proceeding to the workspace
+  useEffect(() => {
+    return () => {
+      const isGoingToWorkspace = window.location.pathname.includes('/workspace') || isProceedingToWorkspace.current;
+      if (!isGoingToWorkspace) {
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(t => t.stop());
+        }
+        if (screenStreamRef.current) {
+          screenStreamRef.current.getTracks().forEach(t => t.stop());
+          setScreenStream(null);
+        }
+        setCameraStream(null);
+        setMicStream(null);
+      }
+    };
+  }, [setScreenStream, setCameraStream, setMicStream]);
+
+  // Face tracking hook
+  useEffect(() => {
+    if (!stream || !videoRef.current || !videoReady) return;
+    console.log(
+      "Face Tracking Started",
+      {
+        stream: !!stream,
+        videoReady
+      }
+    );
+    let trackerInstance = null;
+    let isActive = true;
+
+    // Reset stable frames on start
+    consecutiveFramesRef.current = 0;
+
+    const runFaceDetection = async () => {
+      try {
+        setFaceStatus('Loading face detector...');
+        await loadTrackingScripts();
+        if (!isActive) return;
+
+        setFaceStatus('Looking for face...');
+        trackerInstance = startFaceTracking(videoRef.current, (faces) => {
+          if (!isActive) return;
+          const faceCount = faces.length;
+          console.log(`Current face count: ${faceCount}`);
+
+          if (faceCount === 1) {
+            consecutiveFramesRef.current += 1;
+            const stableCount = consecutiveFramesRef.current;
+            console.log(`Stable frame count: ${stableCount}`);
+
+             if (stableCount >= 30) {
+              setFaceStatus('Face verified!');
+              console.log("Verification success");
+              setPermissions(prev => {
+                if (prev.camera !== 'granted') {
+                  toast.success("Face verified! Camera access granted successfully.");
+                  return { ...prev, camera: 'granted' };
+                }
+                return prev;
+              });
+            } else {
+              setFaceStatus(`Hold still for verification (${stableCount}/30)`);
+              setPermissions(prev => {
+                if (prev.camera !== 'checking') {
+                  return { ...prev, camera: 'checking' };
+                }
+                return prev;
+              });
+            }
+          } else {
+            consecutiveFramesRef.current = 0;
+            console.log("Stable frame count: 0");
+
+            if (faceCount === 0) {
+              setFaceStatus('No face detected');
+            } else {
+              setFaceStatus('Multiple faces detected');
+            }
+
+            setPermissions(prev => {
+              if (prev.camera !== 'checking') {
+                return { ...prev, camera: 'checking' };
+              }
+              return prev;
+            });
+          }
+        });
+      } catch (err) {
+        console.error("Face detection error:", err);
+        setFaceStatus('Detection error');
+      }
+    };
+
+    runFaceDetection();
+
+    return () => {
+      isActive = false;
+      if (trackerInstance) {
+        trackerInstance.stop();
+      }
+    };
+  }, [stream, videoReady]);
 
   const handleRequestPermission = async (permId) => {
-    if (permId === 'camera' || permId === 'mic') {
-      setPermissions(prev => ({ ...prev, camera: 'checking', mic: 'checking' }));
+    if (permId === 'camera') {
+      setPermissions(prev => ({ ...prev, camera: 'checking' }));
+      setVideoReady(false);
       try {
-        const str = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        str.getTracks().forEach(t => t.stop());
-        setPermissions(prev => ({ ...prev, camera: 'granted', mic: 'granted' }));
-        toast.success("Camera and Microphone access granted successfully!");
+        if (stream) {
+          stream.getVideoTracks().forEach(t => t.stop());
+        }
+        const str = await navigator.mediaDevices.getUserMedia({ video: true });
+        setStream(str);
+        setCameraStream(str);
+        toast.info("Camera active. Align your face to complete verification.");
       } catch (err) {
-        setPermissions(prev => ({ ...prev, camera: 'denied', mic: 'denied' }));
-        toast.error("Camera or Microphone permission was denied.");
+        setPermissions(prev => ({ ...prev, camera: 'denied' }));
+        toast.error("Camera permission was denied.");
+      }
+    } else if (permId === 'mic') {
+      setPermissions(prev => ({ ...prev, mic: 'checking' }));
+      try {
+        if (micStream) {
+          micStream.getAudioTracks().forEach(t => t.stop());
+        }
+        const str = await navigator.mediaDevices.getUserMedia({ audio: true });
+        setMicStream(str);
+        setPermissions(prev => ({ ...prev, mic: 'granted' }));
+        toast.success("Microphone permission granted successfully.");
+      } catch (err) {
+        setPermissions(prev => ({ ...prev, mic: 'denied' }));
+        toast.error("Microphone permission was denied.");
       }
     } else if (permId === 'screen') {
       setPermissions(prev => ({ ...prev, screen: 'checking' }));
       try {
         const str = await navigator.mediaDevices.getDisplayMedia({ video: true });
-        str.getTracks().forEach(t => t.stop());
+        console.log("[PROCTORING] Screen stream created");
+
+        const track = str.getVideoTracks()[0];
+        const settings = track ? track.getSettings() : {};
+        const displaySurface = settings.displaySurface;
+
+        console.log(`[SCREEN] displaySurface: ${displaySurface}`);
+
+        if (displaySurface !== 'monitor') {
+          str.getTracks().forEach(t => t.stop());
+          setPermissions(prev => ({ ...prev, screen: 'denied' }));
+          toast.error("Please share your entire screen. Browser tabs and application windows are not allowed.");
+          return;
+        }
+
+        setScreenStream(str);
+        console.log("[PROCTORING] Screen stream persisted");
         setPermissions(prev => ({ ...prev, screen: 'granted' }));
         toast.success("Screen capture sharing granted successfully!");
       } catch (err) {
@@ -145,14 +304,31 @@ const OAPermissionCheck = () => {
 
   const runChecks = async () => {
     setChecking(true);
-    // 1. Camera & Mic
+    setVideoReady(false);
+    // 1. Camera
     try {
-      setPermissions(prev => ({ ...prev, camera: 'checking', mic: 'checking' }));
-      const str = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      str.getTracks().forEach(t => t.stop());
-      setPermissions(prev => ({ ...prev, camera: 'granted', mic: 'granted' }));
+      setPermissions(prev => ({ ...prev, camera: 'checking' }));
+      if (stream) {
+        stream.getVideoTracks().forEach(t => t.stop());
+      }
+      const str = await navigator.mediaDevices.getUserMedia({ video: true });
+      setStream(str);
+      setCameraStream(str);
     } catch (e) {
-      setPermissions(prev => ({ ...prev, camera: 'denied', mic: 'denied' }));
+      setPermissions(prev => ({ ...prev, camera: 'denied' }));
+    }
+
+    // 1b. Mic
+    try {
+      setPermissions(prev => ({ ...prev, mic: 'checking' }));
+      if (micStream) {
+        micStream.getAudioTracks().forEach(t => t.stop());
+      }
+      const str = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setMicStream(str);
+      setPermissions(prev => ({ ...prev, mic: 'granted' }));
+    } catch (e) {
+      setPermissions(prev => ({ ...prev, mic: 'denied' }));
     }
 
     // 2. Notifications
@@ -181,7 +357,7 @@ const OAPermissionCheck = () => {
       setPermissions(prev => ({ ...prev, clipboard: 'granted' }));
     }
 
-    toast.info("Media diagnostics completed. Please grant Screen Sharing and Fullscreen permissions manually using the checklist actions.");
+    toast.info("Diagnostics initialized. Align your face to complete camera check.");
     setChecking(false);
   };
 
@@ -205,6 +381,7 @@ const OAPermissionCheck = () => {
   };
 
   const handleStartAssessment = async () => {
+    isProceedingToWorkspace.current = true;
     const { browser, os } = getBrowserAndOS();
     try {
       const token = localStorage.getItem('token');
@@ -228,7 +405,7 @@ const OAPermissionCheck = () => {
     }
   };
 
-  const mandatoryPassed = 
+  const mandatoryPassed =
     permissions.camera === 'granted' &&
     permissions.mic === 'granted' &&
     permissions.screen === 'granted' &&
@@ -259,7 +436,7 @@ const OAPermissionCheck = () => {
     <MainLayout>
       <div className="max-w-6xl mx-auto space-y-8 pb-12">
         {/* Back Button */}
-        <button 
+        <button
           onClick={() => navigate(`/oa/${id}`)}
           className="flex items-center gap-2 text-slate-500 hover:text-[#0B1B3B] font-bold transition-colors group"
         >
@@ -292,17 +469,17 @@ const OAPermissionCheck = () => {
                   <span className="text-[10px] text-slate-400 font-bold block">{passedChecks} of {totalChecks} checks verified</span>
                 </div>
               </div>
-              
+
               {/* Progress Bar */}
               <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-orange-500 to-amber-500 transition-all duration-500" 
+                <div
+                  className="h-full bg-gradient-to-r from-orange-500 to-amber-500 transition-all duration-500"
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
 
-              <PermissionChecklist 
-                permissions={permissions} 
+              <PermissionChecklist
+                permissions={permissions}
                 onRequestPermission={handleRequestPermission}
               />
             </div>
@@ -311,13 +488,15 @@ const OAPermissionCheck = () => {
             <div className="lg:col-span-5 space-y-8 lg:sticky lg:top-8">
               {/* Live Webcam Box */}
               <div className="bg-slate-900 rounded-[2.5rem] p-4 text-white overflow-hidden shadow-2xl relative border-4 border-slate-950 aspect-video flex flex-col items-center justify-center group">
-                {permissions.camera === 'granted' ? (
-                  <video 
-                    ref={videoRef} 
-                    autoPlay 
-                    playsInline 
-                    muted 
+                {(permissions.camera === 'granted' || permissions.camera === 'checking') && stream ? (
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
                     className="w-full h-full object-cover rounded-2xl absolute inset-0"
+                    onPlay={() => setVideoReady(true)}
+                    onPause={() => setVideoReady(false)}
                   />
                 ) : (
                   <div className="text-center p-6 space-y-3 z-10">
@@ -330,7 +509,12 @@ const OAPermissionCheck = () => {
                     </p>
                   </div>
                 )}
-                {permissions.camera === 'granted' && (
+                {permissions.camera === 'checking' && faceStatus && (
+                  <div className="absolute top-4 right-4 z-20 bg-orange-600/90 text-white px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg animate-pulse">
+                    {faceStatus}
+                  </div>
+                )}
+                {(permissions.camera === 'granted' || permissions.camera === 'checking') && stream && (
                   <span className="absolute bottom-4 left-4 z-20 flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-500 text-white text-[9px] font-black uppercase tracking-widest shadow-md">
                     <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" /> Live Preview
                   </span>
@@ -360,28 +544,27 @@ const OAPermissionCheck = () => {
                 </div>
 
                 <div className="space-y-4 pt-6 border-t border-slate-200">
-                  <GradientButton 
-                    className="w-full !py-4 flex items-center justify-center gap-2" 
+                  <GradientButton
+                    className="w-full !py-4 flex items-center justify-center gap-2"
                     onClick={runChecks}
                     disabled={checking}
                   >
                     <RefreshCw size={14} className={checking ? 'animate-spin' : ''} />
                     {checking ? 'Running Diagnostics...' : 'Run Auto-Checks'}
                   </GradientButton>
-                  
-                  <button 
+
+                  <button
                     disabled={!mandatoryPassed}
                     onClick={handleStartAssessment}
-                    className={`w-full py-4 rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
-                      mandatoryPassed
-                        ? 'bg-[#0B1B3B] text-white hover:bg-slate-800 shadow-xl shadow-navy-900/20' 
-                        : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                    }`}
+                    className={`w-full py-4 rounded-xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${mandatoryPassed
+                      ? 'bg-[#0B1B3B] text-white hover:bg-slate-800 shadow-xl shadow-navy-900/20'
+                      : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                      }`}
                   >
                     <Play size={14} fill="currentColor" />
                     Start Assessment
                   </button>
-                  
+
                   {!mandatoryPassed && (
                     <div className="flex gap-2 p-3 bg-red-500/5 border border-red-500/10 rounded-2xl">
                       <AlertTriangle size={14} className="text-red-500 shrink-0 mt-0.5" />

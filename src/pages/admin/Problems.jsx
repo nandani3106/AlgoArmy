@@ -23,10 +23,7 @@ export default function Problems() {
     sampleInput: "",
     sampleOutput: "",
     hiddenTestCase: "",
-    inputFormat: "",
-    outputFormat: "",
 
-    // ✅ STARTER CODE TEMPLATES
     starterCpp: "",
     starterPython: "",
     starterJava: "",
@@ -34,8 +31,6 @@ export default function Problems() {
 
     points: 100,
     status: "Draft",
-    examples: [],
-    testCases: [],
   });
 
   useEffect(() => {
@@ -58,6 +53,20 @@ export default function Problems() {
     }));
   };
 
+  // Remove HTML tags helper
+  const cleanHTML = (html) => {
+    if (!html) return "";
+
+    return html
+      .replace(/<[^>]*>/g, "")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .trim();
+  };
+
   // AUTO FILL FROM LEETCODE
   const handleAutoFill = async () => {
     if (!form.leetcodeLink) {
@@ -76,23 +85,20 @@ export default function Problems() {
         title: data.title || "",
         difficulty: data.difficulty || "Easy",
         tag: data.tags?.[0] || "Array",
-        description: data.description || "",
-        constraints: data.constraints || "",
-        sampleInput: data.sampleInput || "",
-        sampleOutput: data.sampleOutput || "",
-        hiddenTestCase: data.hiddenTestCase || "",
-        inputFormat: data.inputFormat || "",
-        outputFormat: data.outputFormat || "",
 
-        // ✅ AUTO FILL STARTER CODE
+        // CLEAN DESCRIPTION HTML
+        description: cleanHTML(data.description),
+
+        constraints: data.constraints || "",
+        sampleInput: data.exampleInput || "",
+        sampleOutput: data.exampleOutput || "",
+        hiddenTestCase: data.hiddenTestCase || "",
+
         starterCpp: data.starterCode?.cpp || "",
         starterPython: data.starterCode?.python || "",
         starterJava: data.starterCode?.java || "",
-        starterJs: data.starterCode?.javascript || "",
-
-        // ✅ AUTO FILL EXAMPLES AND TESTCASES
-        examples: data.examples || [],
-        testCases: (data.testCases && data.testCases.length > 0) ? data.testCases : (data.examples?.map(ex => ({ input: ex.input, output: ex.output })) || []),
+        starterJs:
+          data.starterCode?.javascript || "",
       }));
 
       alert("Problem auto-filled successfully!");
@@ -114,7 +120,10 @@ export default function Problems() {
     try {
       const res = await createProblem(form);
 
-      setProblems([...problems, res.data]);
+      setProblems([
+        ...problems,
+        res.data,
+      ]);
 
       alert("Problem saved to MongoDB!");
 
@@ -128,8 +137,6 @@ export default function Problems() {
         sampleInput: "",
         sampleOutput: "",
         hiddenTestCase: "",
-        inputFormat: "",
-        outputFormat: "",
 
         starterCpp: "",
         starterPython: "",
@@ -138,8 +145,6 @@ export default function Problems() {
 
         points: 100,
         status: "Draft",
-        examples: [],
-        testCases: [],
       });
     } catch (error) {
       console.log(error);
@@ -147,27 +152,31 @@ export default function Problems() {
     }
   };
 
-  const inputClass = `border rounded-xl px-4 py-3 ${
-    isDark
+  const inputClass = `border rounded-xl px-4 py-3 ${isDark
       ? "bg-[#1a1d2b] border-[#2d3348] text-slate-200 placeholder:text-slate-500"
       : "bg-white border-slate-300"
-  }`;
+    }`;
 
   return (
     <>
-      <h1 className={`text-3xl font-bold mb-8 ${isDark ? "text-white" : ""}`}>
+      <h1
+        className={`text-3xl font-bold mb-8 ${isDark ? "text-white" : ""
+          }`}
+      >
         DSA Problem Management
       </h1>
 
       {/* FORM SECTION */}
       <div
-        className={`rounded-2xl p-6 shadow-sm border ${
-          isDark
+        className={`rounded-2xl p-6 shadow-sm border ${isDark
             ? "bg-[#151823] border-[#1e293b]"
             : "bg-white border-slate-200"
-        }`}
+          }`}
       >
-        <h2 className={`text-xl font-semibold mb-6 ${isDark ? "text-white" : ""}`}>
+        <h2
+          className={`text-xl font-semibold mb-6 ${isDark ? "text-white" : ""
+            }`}
+        >
           Add New Problem
         </h2>
 
@@ -177,7 +186,12 @@ export default function Problems() {
             type="text"
             placeholder="Problem Title"
             value={form.title}
-            onChange={(e) => handleChange("title", e.target.value)}
+            onChange={(e) =>
+              handleChange(
+                "title",
+                e.target.value
+              )
+            }
             className={inputClass}
           />
 
@@ -186,7 +200,12 @@ export default function Problems() {
               type="text"
               placeholder="LeetCode Link"
               value={form.leetcodeLink}
-              onChange={(e) => handleChange("leetcodeLink", e.target.value)}
+              onChange={(e) =>
+                handleChange(
+                  "leetcodeLink",
+                  e.target.value
+                )
+              }
               className={`flex-1 ${inputClass}`}
             />
 
@@ -201,7 +220,12 @@ export default function Problems() {
 
           <select
             value={form.difficulty}
-            onChange={(e) => handleChange("difficulty", e.target.value)}
+            onChange={(e) =>
+              handleChange(
+                "difficulty",
+                e.target.value
+              )
+            }
             className={inputClass}
           >
             <option>Easy</option>
@@ -211,7 +235,12 @@ export default function Problems() {
 
           <select
             value={form.tag}
-            onChange={(e) => handleChange("tag", e.target.value)}
+            onChange={(e) =>
+              handleChange(
+                "tag",
+                e.target.value
+              )
+            }
             className={inputClass}
           >
             <option>Array</option>
@@ -219,12 +248,6 @@ export default function Problems() {
             <option>DP</option>
             <option>Graph</option>
             <option>Tree</option>
-            <option>basic maths</option>
-            <option>linkedlist</option>
-            <option>stack</option>
-            <option>queue</option>
-            <option>binary search</option>
-            <option>sorting</option>
           </select>
         </div>
 
@@ -234,7 +257,12 @@ export default function Problems() {
             placeholder="Problem Description"
             rows={5}
             value={form.description}
-            onChange={(e) => handleChange("description", e.target.value)}
+            onChange={(e) =>
+              handleChange(
+                "description",
+                e.target.value
+              )
+            }
             className={`w-full ${inputClass}`}
           />
 
@@ -242,23 +270,12 @@ export default function Problems() {
             placeholder="Constraints"
             rows={3}
             value={form.constraints}
-            onChange={(e) => handleChange("constraints", e.target.value)}
-            className={`w-full ${inputClass}`}
-          />
-
-          <textarea
-            placeholder="Input Format"
-            rows={3}
-            value={form.inputFormat}
-            onChange={(e) => handleChange("inputFormat", e.target.value)}
-            className={`w-full ${inputClass}`}
-          />
-
-          <textarea
-            placeholder="Output Format"
-            rows={3}
-            value={form.outputFormat}
-            onChange={(e) => handleChange("outputFormat", e.target.value)}
+            onChange={(e) =>
+              handleChange(
+                "constraints",
+                e.target.value
+              )
+            }
             className={`w-full ${inputClass}`}
           />
 
@@ -266,7 +283,12 @@ export default function Problems() {
             placeholder="Sample Input"
             rows={3}
             value={form.sampleInput}
-            onChange={(e) => handleChange("sampleInput", e.target.value)}
+            onChange={(e) =>
+              handleChange(
+                "sampleInput",
+                e.target.value
+              )
+            }
             className={`w-full ${inputClass}`}
           />
 
@@ -274,7 +296,12 @@ export default function Problems() {
             placeholder="Sample Output"
             rows={3}
             value={form.sampleOutput}
-            onChange={(e) => handleChange("sampleOutput", e.target.value)}
+            onChange={(e) =>
+              handleChange(
+                "sampleOutput",
+                e.target.value
+              )
+            }
             className={`w-full ${inputClass}`}
           />
 
@@ -282,14 +309,22 @@ export default function Problems() {
             placeholder="Hidden Test Cases"
             rows={3}
             value={form.hiddenTestCase}
-            onChange={(e) => handleChange("hiddenTestCase", e.target.value)}
+            onChange={(e) =>
+              handleChange(
+                "hiddenTestCase",
+                e.target.value
+              )
+            }
             className={`w-full ${inputClass}`}
           />
         </div>
 
-        {/* ✅ STARTER CODE TEMPLATES */}
+        {/* STARTER CODE */}
         <div className="mt-8 space-y-4">
-          <h3 className={`text-lg font-semibold ${isDark ? "text-white" : ""}`}>
+          <h3
+            className={`text-lg font-semibold ${isDark ? "text-white" : ""
+              }`}
+          >
             Starter Code Templates
           </h3>
 
@@ -297,7 +332,12 @@ export default function Problems() {
             placeholder="C++ Starter Code"
             rows={6}
             value={form.starterCpp}
-            onChange={(e) => handleChange("starterCpp", e.target.value)}
+            onChange={(e) =>
+              handleChange(
+                "starterCpp",
+                e.target.value
+              )
+            }
             className={`w-full font-mono ${inputClass}`}
           />
 
@@ -305,7 +345,12 @@ export default function Problems() {
             placeholder="Python Starter Code"
             rows={6}
             value={form.starterPython}
-            onChange={(e) => handleChange("starterPython", e.target.value)}
+            onChange={(e) =>
+              handleChange(
+                "starterPython",
+                e.target.value
+              )
+            }
             className={`w-full font-mono ${inputClass}`}
           />
 
@@ -313,7 +358,12 @@ export default function Problems() {
             placeholder="Java Starter Code"
             rows={6}
             value={form.starterJava}
-            onChange={(e) => handleChange("starterJava", e.target.value)}
+            onChange={(e) =>
+              handleChange(
+                "starterJava",
+                e.target.value
+              )
+            }
             className={`w-full font-mono ${inputClass}`}
           />
 
@@ -321,7 +371,12 @@ export default function Problems() {
             placeholder="JavaScript Starter Code"
             rows={6}
             value={form.starterJs}
-            onChange={(e) => handleChange("starterJs", e.target.value)}
+            onChange={(e) =>
+              handleChange(
+                "starterJs",
+                e.target.value
+              )
+            }
             className={`w-full font-mono ${inputClass}`}
           />
         </div>
@@ -337,28 +392,57 @@ export default function Problems() {
 
       {/* PROBLEMS LIST */}
       <div className="mt-8">
-        <h2 className={`text-2xl font-semibold mb-4 ${isDark ? "text-white" : ""}`}>
+        <h2
+          className={`text-2xl font-semibold mb-4 ${isDark ? "text-white" : ""
+            }`}
+        >
           Uploaded Problems
         </h2>
 
-        {problems.map((problem, index) => (
-          <div
-            key={index}
-            className={`p-5 rounded-2xl border mb-4 ${
-              isDark
-                ? "bg-[#151823] border-[#1e293b]"
-                : "bg-white"
-            }`}
-          >
-            <h3 className={`font-semibold ${isDark ? "text-white" : ""}`}>
-              {problem.title}
-            </h3>
+        {problems.map(
+          (problem, index) => (
+            <div
+              key={index}
+              className={`p-5 rounded-2xl border mb-4 ${isDark
+                  ? "bg-[#151823] border-[#1e293b]"
+                  : "bg-white"
+                }`}
+            >
+              <h3
+                className={`font-semibold ${isDark
+                    ? "text-white"
+                    : ""
+                  }`}
+              >
+                {problem.title}
+              </h3>
 
-            <p className={isDark ? "text-slate-400" : ""}>
-              {problem.tag} • {problem.difficulty}
-            </p>
-          </div>
-        ))}
+              <p
+                className={
+                  isDark
+                    ? "text-slate-400"
+                    : ""
+                }
+              >
+                {problem.tag} •{" "}
+                {problem.difficulty}
+              </p>
+
+              {/* CLEAN DESCRIPTION DISPLAY */}
+              <p
+                className={`mt-2 text-sm ${isDark
+                    ? "text-slate-300"
+                    : "text-slate-600"
+                  }`}
+              >
+                {cleanHTML(
+                  problem.description
+                ).slice(0, 150)}
+                ...
+              </p>
+            </div>
+          )
+        )}
       </div>
     </>
   );

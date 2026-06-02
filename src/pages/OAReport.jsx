@@ -5,7 +5,7 @@ import ScoreCard from '../components/ScoreCard';
 import DashboardCard from '../components/DashboardCard';
 import {
   Target, Zap, Clock, Building2, CheckCircle, AlertCircle, BarChart3, Loader2,
-  Code2, Timer, Database, Activity, ChevronDown, ChevronUp, XCircle, FileText
+  Code2, Timer, Database, Activity, ChevronDown, ChevronUp, XCircle, FileText, ShieldAlert
 } from 'lucide-react';
 
 const API_BASE = 'http://localhost:5000';
@@ -14,6 +14,7 @@ const OAReport = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [data, setData] = useState(null);
+  const [proctorLog, setProctorLog] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expandedQ, setExpandedQ] = useState(null);
@@ -31,6 +32,7 @@ const OAReport = () => {
 
         if (result.success) {
           setData(result.submission);
+          setProctorLog(result.proctorLog);
         } else {
           setError(result.message || 'Failed to fetch report');
         }
@@ -98,6 +100,82 @@ const OAReport = () => {
           <ScoreCard title="Time Spent" value="42m" subtitle={new Date(data.submittedAt).toLocaleDateString()} icon={Clock} color="green" />
         </div>
 
+        {/* Proctoring Integrity Summary */}
+        {proctorLog && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <ShieldAlert className="text-orange-500" size={20} />
+                  <h3 className="text-lg font-black text-[#0B1B3B]">Proctoring Integrity</h3>
+                </div>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Candidate Security Status</p>
+              </div>
+              <div className="my-8 flex items-center justify-center">
+                <div className="text-center">
+                  <p className="text-6xl font-black tracking-tight text-[#0B1B3B]">
+                    {proctorLog.integrityScore ?? 100}
+                  </p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-2">Integrity Score</p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div className="flex justify-between text-xs font-bold text-slate-500">
+                  <span>Critical Violations</span>
+                  <span className="text-red-600 font-black">{proctorLog.violationCount || 0} / 5</span>
+                </div>
+                <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                  <div 
+                    className="bg-red-500 h-full rounded-full transition-all duration-500" 
+                    style={{ width: `${Math.min(100, ((proctorLog.violationCount || 0) / 5) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="lg:col-span-2 bg-white p-8 rounded-3xl border border-slate-100 shadow-sm flex flex-col">
+              <div className="mb-4">
+                <h3 className="text-lg font-black text-[#0B1B3B] mb-1">Violation Timeline</h3>
+                <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Historical proctoring events recorded during assessment</p>
+              </div>
+              
+              <div className="flex-1 space-y-4 max-h-[260px] overflow-y-auto pr-2">
+                {proctorLog.violations && proctorLog.violations.length > 0 ? (
+                  proctorLog.violations.map((v, index) => {
+                    const isCritical = v.severity === "CRITICAL";
+                    const isWarning = v.severity === "WARNING";
+                    
+                    let badgeColor = "bg-blue-50 text-blue-600 border-blue-100";
+                    if (isCritical) badgeColor = "bg-red-50 text-red-600 border-red-100";
+                    else if (isWarning) badgeColor = "bg-amber-50 text-amber-600 border-amber-100";
+
+                    return (
+                      <div key={index} className="flex items-start gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100/50">
+                        <div className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border ${badgeColor}`}>
+                          {v.severity || "INFO"}
+                        </div>
+                        <div className="flex-1 space-y-1">
+                          <p className="text-xs font-black text-[#0B1B3B]">{v.eventType}</p>
+                          <p className="text-xs text-slate-500 font-medium">{v.description}</p>
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-bold">
+                          {new Date(v.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                        </span>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-slate-400 gap-2">
+                    <CheckCircle className="text-green-500 animate-bounce" size={36} />
+                    <p className="text-xs font-black uppercase tracking-widest text-slate-500">Perfect Assessment Integrity</p>
+                    <p className="text-[10px] text-slate-400">No violations or proctoring alerts recorded.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         <DashboardCard title="Question Breakdown" icon={BarChart3}>
           <div className="space-y-6">
             {data.answers.map((ans, idx) => {
@@ -130,7 +208,7 @@ const OAReport = () => {
                          }`}>{ans.verdict || 'WA'}</span>
                        )}
                        {isExpanded ? <ChevronUp size={20} className="text-slate-400" /> : <ChevronDown size={20} className="text-slate-400" />}
-                    </div>
+                     </div>
                   </button>
 
                   {isExpanded && (

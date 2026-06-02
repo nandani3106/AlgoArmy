@@ -25,10 +25,12 @@ const oaLogSchema = new mongoose.Schema({
     {
       eventType: { type: String, required: true }, // e.g. "Camera Disabled", "Fullscreen Exited", "Tab Switched", "Window Unfocused", etc.
       description: { type: String },
+      severity: { type: String, enum: ["INFO", "WARNING", "CRITICAL"], default: "CRITICAL" },
       timestamp: { type: Date, default: Date.now }
     }
   ],
-  violationCount: { type: Number, default: 0 }
+  violationCount: { type: Number, default: 0 },
+  integrityScore: { type: Number, default: 100 }
 }, { timestamps: true });
 
 export default mongoose.model("OALog", oaLogSchema);

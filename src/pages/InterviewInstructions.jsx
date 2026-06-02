@@ -10,6 +10,7 @@ import {
   Brain, Target, MessageSquare, Zap, Briefcase, Loader2, RefreshCw, AlertTriangle
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { loadTrackingScripts, startFaceTracking } from '../utils/faceTracking';
 
 const CRITERIA = [
   { icon: Brain, label: 'Technical Knowledge', desc: 'DSA, system design, and core concepts' },
@@ -26,7 +27,11 @@ const InterviewInstructions = () => {
   const [preparing, setPreparing] = useState(true);
   const [checking, setChecking] = useState(false);
   const videoRef = useRef(null);
+  const consecutiveFramesRef = useRef(0);
   const [stream, setStream] = useState(null);
+  const [micStream, setMicStream] = useState(null);
+  const [faceStatus, setFaceStatus] = useState('');
+  const [videoReady, setVideoReady] = useState(false);
 
   const [permissions, setPermissions] = useState({
     camera: 'pending',
@@ -85,42 +90,169 @@ const InterviewInstructions = () => {
 
   // Live video preview ref management
   useEffect(() => {
-    if (permissions.camera === 'granted') {
-      navigator.mediaDevices.getUserMedia({ video: true })
-        .then(str => {
-          setStream(str);
-          if (videoRef.current) {
-            videoRef.current.srcObject = str;
-          }
-        })
-        .catch(err => {
-          console.error("Camera preview load error:", err);
-        });
-    }
+    const setupVideo = async () => {
+      if (!stream || !videoRef.current) return;
 
+      videoRef.current.srcObject = stream;
+
+      try {
+        await videoRef.current.play();
+        setVideoReady(true);
+        console.log("Video Ready");
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    setupVideo();
+  }, [stream]);
+
+  // Clean up stream on unmount
+  useEffect(() => {
     return () => {
       if (stream) {
         stream.getTracks().forEach(t => t.stop());
       }
+      if (micStream) {
+        micStream.getTracks().forEach(t => t.stop());
+      }
     };
-  }, [permissions.camera]);
+  }, [stream, micStream]);
+
+  // Face tracking hook
+  useEffect(() => {
+    if (!stream || !videoRef.current || !videoReady) return;
+    console.log(
+      "Face Tracking Started",
+      {
+        stream: !!stream,
+        videoReady
+      }
+    );
+
+    let trackerInstance = null;
+    let isActive = true;
+
+    // Reset stable frames on start
+    consecutiveFramesRef.current = 0;
+
+    const runFaceDetection = async () => {
+      try {
+        setFaceStatus('Loading face detector...');
+        await loadTrackingScripts();
+        if (!isActive) return;
+
+        setFaceStatus('Looking for face...');
+        trackerInstance = startFaceTracking(videoRef.current, (faces) => {
+          if (!isActive) return;
+          const faceCount = faces.length;
+          console.log(`Current face count: ${faceCount}`);
+
+          if (faceCount === 1) {
+            consecutiveFramesRef.current += 1;
+            const stableCount = consecutiveFramesRef.current;
+            console.log(`Stable frame count: ${stableCount}`);
+
+             if (stableCount >= 30) {
+              setFaceStatus('Face verified!');
+              console.log("Verification success");
+              setPermissions(prev => {
+                if (prev.camera !== 'granted') {
+                  toast.success("Face verified! Camera access granted successfully.");
+                  return { ...prev, camera: 'granted' };
+                }
+                return prev;
+              });
+            } else {
+              setFaceStatus(`Hold still for verification (${stableCount}/30)`);
+              setPermissions(prev => {
+                if (prev.camera !== 'checking') {
+                  return { ...prev, camera: 'checking' };
+                }
+                return prev;
+              });
+            }
+          } else {
+            consecutiveFramesRef.current = 0;
+            console.log("Stable frame count: 0");
+
+            if (faceCount === 0) {
+              setFaceStatus('No face detected');
+            } else {
+              setFaceStatus('Multiple faces detected');
+            }
+
+            setPermissions(prev => {
+              if (prev.camera !== 'checking') {
+                return { ...prev, camera: 'checking' };
+              }
+              return prev;
+            });
+          }
+        });
+      } catch (err) {
+        console.error("Face detection error:", err);
+        setFaceStatus('Detection error');
+      }
+    };
+
+    runFaceDetection();
+
+    return () => {
+      isActive = false;
+      if (trackerInstance) {
+        trackerInstance.stop();
+      }
+    };
+  }, [stream, videoReady]);
 
   const handleRequestPermission = async (permId) => {
-    if (permId === 'camera' || permId === 'mic') {
-      setPermissions(prev => ({ ...prev, camera: 'checking', mic: 'checking' }));
+    if (permId === 'camera') {
+      setPermissions(prev => ({ ...prev, camera: 'checking' }));
+      setVideoReady(false);
       try {
-        const str = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        str.getTracks().forEach(t => t.stop());
-        setPermissions(prev => ({ ...prev, camera: 'granted', mic: 'granted' }));
-        toast.success("Camera and Microphone access granted successfully!");
+        if (stream) {
+          stream.getVideoTracks().forEach(t => t.stop());
+        }
+        const str = await navigator.mediaDevices.getUserMedia({ video: true });
+        setStream(str);
+        toast.info("Camera active. Align your face to complete verification.");
       } catch (err) {
-        setPermissions(prev => ({ ...prev, camera: 'denied', mic: 'denied' }));
-        toast.error("Camera or Microphone permission was denied.");
+        setPermissions(prev => ({ ...prev, camera: 'denied' }));
+        toast.error("Camera permission was denied.");
+      }
+    } else if (permId === 'mic') {
+      setPermissions(prev => ({ ...prev, mic: 'checking' }));
+      try {
+        if (micStream) {
+          micStream.getAudioTracks().forEach(t => t.stop());
+        }
+        const str = await navigator.mediaDevices.getUserMedia({ audio: true });
+        setMicStream(str);
+        setPermissions(prev => ({ ...prev, mic: 'granted' }));
+        toast.success("Microphone permission granted successfully.");
+      } catch (err) {
+        setPermissions(prev => ({ ...prev, mic: 'denied' }));
+        toast.error("Microphone permission was denied.");
       }
     } else if (permId === 'screen') {
       setPermissions(prev => ({ ...prev, screen: 'checking' }));
       try {
         const str = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        
+        const track = str.getVideoTracks()[0];
+        const settings = track ? track.getSettings() : {};
+        const displaySurface = settings.displaySurface;
+
+        console.log(`[SCREEN] displaySurface: ${displaySurface}`);
+
+        if (displaySurface !== 'monitor') {
+          str.getTracks().forEach(t => t.stop());
+          setPermissions(prev => ({ ...prev, screen: 'denied' }));
+          toast.error("Please share your entire screen. Browser tabs and application windows are not allowed.");
+          return;
+        }
+
         str.getTracks().forEach(t => t.stop());
         setPermissions(prev => ({ ...prev, screen: 'granted' }));
         toast.success("Screen capture sharing granted successfully!");
@@ -178,14 +310,30 @@ const InterviewInstructions = () => {
 
   const runChecks = async () => {
     setChecking(true);
-    // 1. Camera & Mic
+    setVideoReady(false);
+    // 1. Camera
     try {
-      setPermissions(prev => ({ ...prev, camera: 'checking', mic: 'checking' }));
-      const str = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      str.getTracks().forEach(t => t.stop());
-      setPermissions(prev => ({ ...prev, camera: 'granted', mic: 'granted' }));
+      setPermissions(prev => ({ ...prev, camera: 'checking' }));
+      if (stream) {
+        stream.getVideoTracks().forEach(t => t.stop());
+      }
+      const str = await navigator.mediaDevices.getUserMedia({ video: true });
+      setStream(str);
     } catch (e) {
-      setPermissions(prev => ({ ...prev, camera: 'denied', mic: 'denied' }));
+      setPermissions(prev => ({ ...prev, camera: 'denied' }));
+    }
+
+    // 1b. Mic
+    try {
+      setPermissions(prev => ({ ...prev, mic: 'checking' }));
+      if (micStream) {
+        micStream.getAudioTracks().forEach(t => t.stop());
+      }
+      const str = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setMicStream(str);
+      setPermissions(prev => ({ ...prev, mic: 'granted' }));
+    } catch (e) {
+      setPermissions(prev => ({ ...prev, mic: 'denied' }));
     }
 
     // 2. Notifications
@@ -214,7 +362,7 @@ const InterviewInstructions = () => {
       setPermissions(prev => ({ ...prev, clipboard: 'granted' }));
     }
 
-    toast.info("Media diagnostics completed. Please grant Screen Sharing and Fullscreen permissions manually using the checklist actions.");
+    toast.info("Diagnostics initialized. Align your face to complete camera check.");
     setChecking(false);
   };
 
@@ -292,14 +440,16 @@ const InterviewInstructions = () => {
             
             <div className="lg:col-span-5 space-y-6">
               {/* Webcam Live Stream Box */}
-              <div className="bg-slate-900 rounded-[2rem] p-4 text-white overflow-hidden shadow-2xl relative border-4 border-slate-950 aspect-video flex flex-col items-center justify-center">
-                {permissions.camera === 'granted' ? (
+              <div className="bg-slate-900 rounded-[2rem] p-4 text-white overflow-hidden shadow-2xl relative border-4 border-slate-950 aspect-video flex flex-col items-center justify-center group">
+                {(permissions.camera === 'granted' || permissions.camera === 'checking') && stream ? (
                   <video 
                     ref={videoRef} 
                     autoPlay 
                     playsInline 
                     muted 
                     className="w-full h-full object-cover rounded-xl absolute inset-0"
+                    onPlay={() => setVideoReady(true)}
+                    onPause={() => setVideoReady(false)}
                   />
                 ) : (
                   <div className="text-center p-4 space-y-2 z-10">
@@ -307,9 +457,14 @@ const InterviewInstructions = () => {
                     <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Camera Feed Idle</p>
                   </div>
                 )}
-                {permissions.camera === 'granted' && (
+                {permissions.camera === 'checking' && faceStatus && (
+                  <div className="absolute top-4 right-4 z-20 bg-orange-600/90 text-white px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg animate-pulse">
+                    {faceStatus}
+                  </div>
+                )}
+                {(permissions.camera === 'granted' || permissions.camera === 'checking') && stream && (
                   <span className="absolute bottom-3 left-3 z-20 flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-green-500 text-white text-[8px] font-black uppercase tracking-widest shadow-md">
-                    Live Feedback
+                    <span className="w-1 h-1 rounded-full bg-white animate-ping" /> Live Preview
                   </span>
                 )}
               </div>

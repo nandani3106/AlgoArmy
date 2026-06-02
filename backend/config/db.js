@@ -15,7 +15,7 @@ const connectDB = async () => {
       error.message
     );
 
-    process.exit(1);
+    process.exit(1);  //stops backend server(if database not connected backend will not run) if (0) means success
   }
 };
 

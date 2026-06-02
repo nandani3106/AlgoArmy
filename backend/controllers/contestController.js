@@ -13,7 +13,7 @@ const syncContestProblems = async (contestId) => {
     if (!contest) return;
 
     const existingCPs = await ContestProblem.find({ contest: contestId });
-    
+
     // Remove ContestProblems that are no longer in selectedProblems list
     const contestProblemsToRemove = existingCPs.filter(cp => {
       const originalProblem = (contest.selectedProblems || []).find(p => p.title === cp.title);
@@ -119,6 +119,19 @@ export const registerForContest = async (req, res) => {
   }
 };
 
+// @desc    Get user's contest session details
+// @route   GET /api/contests/:id/session
+// @access  Private
+export const getContestSession = async (req, res) => {
+  try {
+    const registration = await ContestRegistration.findOne({ contest: req.params.id, user: req.user._id });
+    if (!registration) return res.status(404).json({ success: false, message: "Registration not found" });
+    res.status(200).json({ success: true, registration });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
 // @desc    Get problems for a contest
 // @route   GET /api/contests/:id/problems
 // @access  Public
@@ -141,7 +154,7 @@ export const getContestProblems = async (req, res) => {
 export const runContestCode = async (req, res) => {
   try {
     const { problemId, code, language, customInput } = req.body;
-    
+
     if (!problemId || !code || !language) {
       return res.status(400).json({ success: false, message: "Missing required fields" });
     }
@@ -183,8 +196,22 @@ export const submitContestSolution = async (req, res) => {
 
     // Check if contest is already finished for this user
     const registration = await ContestRegistration.findOne({ contest: req.params.id, user: req.user._id });
-    if (registration && registration.status === "completed") {
+    if (!registration) return res.status(403).json({ success: false, message: "Not registered" });
+
+    if (registration.status === "completed") {
       return res.status(400).json({ success: false, message: "Contest already finished. No more submissions allowed." });
+    }
+
+    const contest = await Contest.findById(req.params.id);
+    if (contest && contest.durationMinutes) {
+      const startTime = new Date(registration.registeredAt).getTime();
+      const endTime = startTime + (contest.durationMinutes * 60 * 1000);
+      if (Date.now() > endTime) {
+        registration.status = "completed";
+        registration.finishedAt = new Date();
+        await registration.save();
+        return res.status(400).json({ success: false, message: "Contest time has expired. Submissions closed." });
+      }
     }
 
     // Combine sample and hidden test cases
@@ -194,7 +221,7 @@ export const submitContestSolution = async (req, res) => {
     ];
 
     const evaluation = await evaluateCode(code, language, allTestCases, problem.timeLimit, problem.memoryLimit);
-    
+
     // Rule: Points only for 100% pass, and only count once per distinct problem
     let finalScore = 0;
     if (evaluation.verdict === "Accepted") {
@@ -307,10 +334,10 @@ export const finishContest = async (req, res) => {
 
     const registration = await ContestRegistration.findOneAndUpdate(
       { contest: contestId, user: userId },
-      { 
-        status: "completed", 
+      {
+        status: "completed",
         score: totalScore,
-        finishedAt: new Date() 
+        finishedAt: new Date()
       },
       { new: true }
     );
@@ -341,7 +368,7 @@ export const getContestResults = async (req, res) => {
 
     const attemptedProblemIds = new Set();
     const correctProblemIds = new Set();
-    
+
     submissions.forEach(sub => {
       if (sub.problem) {
         const pId = sub.problem._id.toString();
@@ -352,8 +379,8 @@ export const getContestResults = async (req, res) => {
       }
     });
 
-    res.status(200).json({ 
-      success: true, 
+    res.status(200).json({
+      success: true,
       submissions,
       stats: {
         totalQuestions: totalProblems,
