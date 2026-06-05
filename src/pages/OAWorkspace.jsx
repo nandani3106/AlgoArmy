@@ -14,7 +14,9 @@ import { toast } from 'sonner';
 import { loadTrackingScripts, startFaceTracking } from '../utils/faceTracking';
 import { useProctoring } from '../contexts/ProctoringContext';
 
-const API_BASE = 'http://localhost:5000';
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+  ? 'http://localhost:5000' 
+  : `${window.location.protocol}//${window.location.hostname}:5000`;
 
 const STARTER_TEMPLATES = {
   javascript: `/**\n * Read from stdin and write to stdout.\n */\nconst fs = require('fs');\n\nfunction solve() {\n    const input = fs.readFileSync(0, 'utf8');\n    // Write your code here\n}\n\nsolve();`,
@@ -68,6 +70,12 @@ const OAWorkspace = () => {
   const workspaceVideoRef = useRef(null);
   const lastMultiFaceViolationRef = useRef(0);
   const lastNoFaceViolationRef = useRef(0);
+  const multiFaceStartRef = useRef(null);
+  const noFaceStartRef = useRef(null);
+  const hasLoggedMultiFaceRef = useRef(false);
+  const hasLoggedNoFaceRef = useRef(false);
+  const deviceStartRef = useRef(null);
+  const hasLoggedDeviceRef = useRef(false);
   const [videoReady, setVideoReady] = useState(false);
   const alertShownRef = useRef(false);
   const [showInstructionModal, setShowInstructionModal] = useState(false);
@@ -374,42 +382,25 @@ const OAWorkspace = () => {
         const count = data.violationCount;
         setViolationCount(count);
 
-        const isCritical = [
-          "Tab switched",
-          "Window unfocused",
-          "Fullscreen exited",
-          "Screen sharing stopped",
-          "Internet disconnected"
-        ].includes(eventType);
-
-        if (isCritical) {
-          if (count >= 5 || data.autoSubmitted) {
-            toast.error("Maximum proctoring violations reached. Auto-submitting assessment...", { duration: 8000 });
-            submitAssessment(true);
-          } else {
-            toast.error(`Warning: ${5 - count} critical violations remaining before automatic assessment submission!`, { duration: 6000 });
-          }
+        if (count >= 5 || data.autoSubmitted) {
+          toast.error("Maximum proctoring violations reached. Auto-submitting assessment...", { duration: 8000 });
+          submitAssessment(true);
+        } else {
+          toast.error(`Warning: ${5 - count} violations remaining before automatic assessment submission!`, { duration: 6000 });
         }
       }
     } catch (err) {
       console.error("Failed to log violation on backend:", err);
-      const isCritical = [
-        "Tab switched",
-        "Window unfocused",
-        "Fullscreen exited",
-        "Screen sharing stopped",
-        "Internet disconnected"
-      ].includes(eventType);
-
-      if (isCritical) {
-        setViolationCount(prev => {
-          const newCount = prev + 1;
-          if (newCount >= 5) {
-            submitAssessment(true);
-          }
-          return newCount;
-        });
-      }
+      setViolationCount(prev => {
+        const newCount = prev + 1;
+        if (newCount >= 5) {
+          toast.error("Maximum proctoring violations reached. Auto-submitting assessment...", { duration: 8000 });
+          submitAssessment(true);
+        } else {
+          toast.error(`Warning: ${5 - newCount} violations remaining before automatic assessment submission!`, { duration: 6000 });
+        }
+        return newCount;
+      });
     }
   }, [id]);
 
@@ -504,17 +495,34 @@ const OAWorkspace = () => {
         trackerInstance = startFaceTracking(workspaceVideoRef.current, (faces) => {
           if (!isActive) return;
           if (faces.length > 1) {
-            const now = Date.now();
-            if (now - lastMultiFaceViolationRef.current > 15000) {
-              lastMultiFaceViolationRef.current = now;
-              logViolation("Multiple faces detected", "More than one person was detected in the camera frame.");
+            noFaceStartRef.current = null;
+            hasLoggedNoFaceRef.current = false;
+
+            if (multiFaceStartRef.current === null) {
+              multiFaceStartRef.current = Date.now();
+            } else if (Date.now() - multiFaceStartRef.current >= 3000) {
+              if (!hasLoggedMultiFaceRef.current) {
+                hasLoggedMultiFaceRef.current = true;
+                logViolation("Multiple faces detected", "More than one person was detected in the camera frame.");
+              }
             }
           } else if (faces.length === 0) {
-            const now = Date.now();
-            if (now - lastNoFaceViolationRef.current > 15000) {
-              lastNoFaceViolationRef.current = now;
-              logViolation("No face detected", "No face was detected in the camera frame.");
+            multiFaceStartRef.current = null;
+            hasLoggedMultiFaceRef.current = false;
+
+            if (noFaceStartRef.current === null) {
+              noFaceStartRef.current = Date.now();
+            } else if (Date.now() - noFaceStartRef.current >= 3000) {
+              if (!hasLoggedNoFaceRef.current) {
+                hasLoggedNoFaceRef.current = true;
+                logViolation("No face detected", "No face was detected in the camera frame.");
+              }
             }
+          } else {
+            multiFaceStartRef.current = null;
+            hasLoggedMultiFaceRef.current = false;
+            noFaceStartRef.current = null;
+            hasLoggedNoFaceRef.current = false;
           }
         });
       } catch (err) {
@@ -564,11 +572,21 @@ const OAWorkspace = () => {
             if (response.ok) {
               const data = await response.json();
               if (data.success && data.deviceDetected && isActive) {
-                console.log(`[PROCTORING] Device detected: ${data.deviceName} - ${data.explanation}`);
-                logViolation(
-                  "Unauthorized device detected",
-                  `An unauthorized device (${data.deviceName || "electronic device"}) was detected in the camera frame. Details: ${data.explanation}`
-                );
+                if (deviceStartRef.current === null) {
+                  deviceStartRef.current = Date.now();
+                } else if (Date.now() - deviceStartRef.current >= 3000) {
+                  if (!hasLoggedDeviceRef.current) {
+                    hasLoggedDeviceRef.current = true;
+                    console.log(`[PROCTORING] Device detected: ${data.deviceName} - ${data.explanation}`);
+                    logViolation(
+                      "Unauthorized device detected",
+                      `An unauthorized device (${data.deviceName || "electronic device"}) was detected in the camera frame. Details: ${data.explanation}`
+                    );
+                  }
+                }
+              } else if (data.success && !data.deviceDetected) {
+                deviceStartRef.current = null;
+                hasLoggedDeviceRef.current = false;
               }
             }
           }
@@ -577,9 +595,9 @@ const OAWorkspace = () => {
         console.error("Error during device detection proctoring:", err);
       }
 
-      // Run every 15 seconds
+      // Run check every 5 seconds to support responsive 3-second continuous checking
       if (isActive) {
-        timerId = setTimeout(performDeviceDetection, 15000);
+        timerId = setTimeout(performDeviceDetection, 5000);
       }
     };
 

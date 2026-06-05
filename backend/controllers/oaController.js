@@ -483,8 +483,8 @@ export const logOAViolation = async (req, res) => {
       timestamp: new Date()
     });
 
-    // Recalculate violationCount (CRITICAL violations only)
-    oaLog.violationCount = oaLog.violations.filter(v => v.severity === "CRITICAL").length;
+    // Recalculate violationCount (CRITICAL and WARNING violations count towards the limit of 5 total violations)
+    oaLog.violationCount = oaLog.violations.filter(v => v.severity === "CRITICAL" || v.severity === "WARNING").length;
 
     // Recalculate integrity score
     let score = 100;

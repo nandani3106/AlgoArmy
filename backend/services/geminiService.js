@@ -433,6 +433,8 @@ export async function detectDevicesInImage(base64Image) {
     // Preprocess image with sharp
     const { data, info } = await sharp(imgBuffer)
       .resize(640, 640, { fit: 'fill' })
+      .toColorspace('srgb')
+      .removeAlpha()
       .raw()
       .toBuffer({ resolveWithObject: true });
 
@@ -456,7 +458,7 @@ export async function detectDevicesInImage(base64Image) {
     const numClasses = dims[1] - 4; // 80 classes
     const numCandidates = dims[2];  // 8400 candidates
 
-    const confidenceThreshold = 0.3;
+    const confidenceThreshold = 0.2; // Lowered from 0.3 to 0.2 to improve webcam/mobile phone detection recall
     const rawDetections = [];
 
     // Transpose and process candidates

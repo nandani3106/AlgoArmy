@@ -11,7 +11,9 @@ import { toast } from 'sonner';
 import { loadTrackingScripts, startFaceTracking } from '../utils/faceTracking';
 import { useProctoring } from '../contexts/ProctoringContext';
 
-const API_BASE = 'http://localhost:5000';
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+  ? 'http://localhost:5000' 
+  : `${window.location.protocol}//${window.location.hostname}:5000`;
 
 const OAPermissionCheck = () => {
   const { id } = useParams();
