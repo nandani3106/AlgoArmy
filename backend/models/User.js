@@ -41,6 +41,9 @@ const userSchema = new mongoose.Schema(
     codeforces: { type: String, default: "" },
     resumeUrl: { type: String, default: "" },
     projects: { type: [String], default: [] },
+    structuredSkills: { type: mongoose.Schema.Types.Mixed, default: {} },
+    structuredProjects: { type: mongoose.Schema.Types.Mixed, default: [] },
+    candidateProfile: { type: mongoose.Schema.Types.Mixed, default: null },
     extractedResumeText: { type: String, default: "" },
     lastLogin: {
       type: Date,

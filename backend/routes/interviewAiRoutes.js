@@ -4,6 +4,7 @@ import {
   parseResumeAndGenerateQuestions,
   regenerateInterviewQuestions,
   submitInterview,
+  detectInterviewDevices,
 } from "../controllers/interviewAiController.js";
 
 const router = express.Router();
@@ -16,5 +17,8 @@ router.post("/regenerate", protect, regenerateInterviewQuestions);
 
 // POST /api/interview-ai/submit — Evaluate and save interview results
 router.post("/submit", protect, submitInterview);
+
+// POST /api/interview-ai/detect-devices — Detect devices in image frame
+router.post("/detect-devices", protect, detectInterviewDevices);
 
 export default router;

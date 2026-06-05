@@ -4,6 +4,7 @@ import path from "path";
 import ort from "onnxruntime-node";
 import sharp from "sharp";
 import axios from "axios";
+import { parseResumeLocally } from "./resumeParserService.js";
 
 const MODEL_NAME = "gemini-2.0-flash"; // Using a stable 2.0 version
 
@@ -32,36 +33,58 @@ function cleanResumeText(text) {
 }
 
 /**
- * Extract structured resume data (skills + projects) from raw text.
+ * Extract structured resume data (skills + projects + profile) from raw text.
  */
 export async function extractResumeData(resumeText) {
-  const ai = getGeminiClient();
   const cleaned = cleanResumeText(resumeText);
 
-  const prompt = `You are an expert ATS resume parser.
+  const prompt = `You are an expert ATS resume parser and candidate intelligence engine.
 
-Extract technical skills and project names from the resume.
+Extract candidate name, technical skills, projects, and domain profile details from the resume.
 
-Return ONLY valid JSON in this exact format:
+Return ONLY valid JSON in this exact format, with no markdown code block formatting or backticks:
 {
-  "skills": [],
-  "projects": []
+  "fullName": "Candidate Name",
+  "skills": {
+    "languages": ["JavaScript", "Python"],
+    "frontend": ["React", "Next.js"],
+    "backend": ["Node.js", "Express.js"],
+    "database": ["MongoDB", "PostgreSQL"],
+    "cloud": ["AWS", "Docker"],
+    "tools": ["Git", "GitHub"],
+    "ai_ml": ["TensorFlow", "YOLO"],
+    "other": ["GraphQL", "JWT"]
+  },
+  "projects": [
+    {
+      "name": "Project Name",
+      "description": "Short description of the project.",
+      "technologies": ["React", "Node.js"],
+      "features": ["AI Interview", "Proctoring"]
+    }
+  ],
+  "candidateProfile": {
+    "fullName": "Candidate Name",
+    "skills": ["JavaScript", "React", "Node.js"],
+    "projects": ["Project Name"],
+    "primaryDomains": ["Full Stack Development", "Machine Learning"],
+    "experienceLevel": "Entry Level",
+    "recommendedInterviewTopics": ["System Architecture", "React Hooks"]
+  }
 }
 
 Rules:
-1. Include all technical skills from any technical domain.
-2. Include programming languages, frameworks, libraries, databases, tools, cloud platforms, cybersecurity tools, AI/ML libraries, mobile frameworks, and other technical technologies.
-3. Do not include soft skills.
-4. Remove duplicates.
-5. Preserve correct capitalization.
-6. Extract only project names.
-7. Return at most 50 skills and 20 projects.
-8. Return JSON only.
+1. "skills" must hold categorized lists of technical skills with correct capitalization.
+2. "projects" must contain actual projects with name, description, technologies linked to this project, and features. Do not use placeholder titles.
+3. If a section is missing or empty, return empty list or empty object fields (no placeholders).
+4. "candidateProfile" represents the aggregated candidate metadata.
+5. CRITICAL: Do not split a single main project into multiple smaller projects based on its sub-features, sub-modules, phases, or bullets. Group all sub-components, sub-modules, and phases under a single main project object, listing sub-features inside the "features" array.
 
 Resume Text:
 ${cleaned}`;
 
   try {
+    const ai = getGeminiClient();
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
       contents: prompt,
@@ -76,63 +99,41 @@ ${cleaned}`;
 
     const data = JSON.parse(text);
 
-    // Normalize results
-    const normalize = (arr) => {
-      if (!Array.isArray(arr)) return [];
-      return [...new Set(
-        arr.map(item => String(item).trim()).filter(item => item.length > 0)
-      )];
-    };
+    // Normalize and flatten results
+    const flatSkills = [];
+    if (data.skills && typeof data.skills === "object") {
+      for (const list of Object.values(data.skills)) {
+        if (Array.isArray(list)) {
+          flatSkills.push(...list);
+        }
+      }
+    }
+
+    const uniqueSkills = [...new Set(
+      flatSkills.map(item => String(item).trim()).filter(item => item.length > 0)
+    )];
+
+    const projectNames = Array.isArray(data.projects)
+      ? data.projects.map(p => String(p.name || p.title || "").trim()).filter(Boolean)
+      : [];
 
     return {
-      skills: normalize(data.skills),
-      projects: normalize(data.projects),
+      skills: uniqueSkills,
+      projects: projectNames,
+      structuredSkills: data.skills || {},
+      structuredProjects: data.projects || [],
+      candidateProfile: {
+        fullName: data.fullName || data.candidateProfile?.fullName || "Candidate",
+        skills: uniqueSkills,
+        projects: projectNames,
+        primaryDomains: data.candidateProfile?.primaryDomains || ["Software Engineering"],
+        experienceLevel: data.candidateProfile?.experienceLevel || "Entry Level",
+        recommendedInterviewTopics: data.candidateProfile?.recommendedInterviewTopics || []
+      }
     };
   } catch (err) {
     console.error("extractResumeData failed, using local fallback parser:", err.message);
-
-    // Local fallback: scan the raw resume text for common technical skills
-    const commonSkills = [
-      "JavaScript", "TypeScript", "Python", "Java", "C++", "C#", "Ruby", "Golang", "Swift", "Kotlin", "PHP",
-      "React", "Angular", "Vue", "Next.js", "Node.js", "Express", "Django", "Flask", "Spring Boot",
-      "MongoDB", "PostgreSQL", "MySQL", "Redis", "SQLite", "Firebase", "Cassandra",
-      "Docker", "Kubernetes", "AWS", "Azure", "GCP", "Git", "GitHub", "Linux", "Nginx", "Jenkins",
-      "HTML", "CSS", "Tailwind CSS", "Bootstrap", "Redux", "GraphQL", "REST API", "Microservices",
-      "Machine Learning", "Deep Learning", "TensorFlow", "PyTorch", "NLP", "Computer Vision"
-    ];
-
-    const extractedSkills = [];
-    commonSkills.forEach(skill => {
-      const regex = new RegExp(`\\b${skill.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, "i");
-      if (regex.test(resumeText)) {
-        extractedSkills.push(skill);
-      }
-    });
-
-    // Find project titles using simple lines containing "Project" or similar keywords
-    const extractedProjects = [];
-    const lines = resumeText.split("\n");
-    lines.forEach(line => {
-      const trimmed = line.trim();
-      if (trimmed.length > 5 && trimmed.length < 50 &&
-        (trimmed.toLowerCase().includes("project") || trimmed.toLowerCase().includes("portfolio") || trimmed.toLowerCase().includes("application")) &&
-        !trimmed.toLowerCase().includes("skills") && !trimmed.toLowerCase().includes("experience")) {
-        extractedProjects.push(trimmed);
-      }
-    });
-
-    // Fallback default values if none were successfully scanned
-    if (extractedSkills.length === 0) {
-      extractedSkills.push("JavaScript", "React", "Node.js", "Web Development", "Git");
-    }
-    if (extractedProjects.length === 0) {
-      extractedProjects.push("Personal Portfolio Website", "E-Commerce Application");
-    }
-
-    return {
-      skills: extractedSkills.slice(0, 15),
-      projects: extractedProjects.slice(0, 3)
-    };
+    return parseResumeLocally(resumeText);
   }
 }
 
@@ -140,26 +141,43 @@ ${cleaned}`;
  * Generate a tailored set of interview questions based on the candidate profile.
  */
 export async function generateInterviewQuestions(profileData) {
-  const ai = getGeminiClient();
-  const { fullName, role, skills, projects } = profileData;
+  const { fullName, role, skills, projects, candidateProfile, structuredProjects } = profileData;
 
-  const prompt = `
-You are an expert technical interviewer at a top tech company.
+  const skillsList = skills && skills.length > 0 ? skills : ["Software Engineering"];
+  const projectsList = projects && projects.length > 0 ? projects : [];
+  const domainInfo = candidateProfile?.primaryDomains?.join(", ") || role || "Software Engineer";
+  const interviewTopics = candidateProfile?.recommendedInterviewTopics?.join(", ") || "Data Structures, System Design";
+
+  let projectsPromptDetails = "";
+  if (Array.isArray(structuredProjects) && structuredProjects.length > 0) {
+    projectsPromptDetails = structuredProjects.map(p => {
+      const techStr = Array.isArray(p.technologies) ? p.technologies.join(", ") : "";
+      const featStr = Array.isArray(p.features) ? p.features.join("; ") : "";
+      return `Project Name: ${p.name}\nDescription: ${p.description || ""}\nTechnologies: ${techStr}\nFeatures: ${featStr}`;
+    }).join("\n\n");
+  } else {
+    projectsPromptDetails = projectsList.join(", ");
+  }
+
+  const prompt = `You are an expert technical interviewer at a top tech company.
 
 Generate exactly 10 interview questions for the following candidate:
 
 Name: ${fullName}
-Role: ${role || "Software Engineer"}
-Skills: ${skills.join(", ")}
-Projects: ${projects.join(", ")}
+Role/Domains: ${domainInfo}
+Skills: ${skillsList.join(", ")}
+Recommended Topics: ${interviewTopics}
+
+Candidate Projects:
+${projectsPromptDetails}
 
 Requirements:
 - GENERATE A COMPLETELY NEW AND UNIQUE SET OF QUESTIONS EVERY TIME. Do not repeat questions from previous sessions.
 - TOTAL QUESTIONS: 10
 - DISTRIBUTION:
   1. SYNTAX & CONCEPTS (3 Questions): Focus on the core syntax, internal working, or foundational concepts of the programming languages/frameworks listed in the skills section (e.g., 'Explain hoisting in JS' or 'What are decorators in Python?').
-  2. PROJECT-BASED (4 Questions): Deep-dive into the specific projects mentioned. Ask about architectural decisions, challenges faced, or how a specific feature was implemented.
-  3. BEHAVIORAL & HR (3 Questions): Standard behavioral questions (conflict resolution, teamwork, or situational engineering scenarios).
+  2. PROJECT-BASED (4 Questions): Deep-dive into the specific projects mentioned. Ask about architectural decisions, challenges faced, technologies used, or how a specific feature was implemented.
+  3. BEHAVIORAL & HR (3 Questions): Standard behavioral questions (conflict resolution, teamwork, or situational engineering scenarios) contextualized to the candidate's projects.
 - PROGRESSIVE DIFFICULTY:
   - Q1-Q3: Syntax/Foundational (Easy-Intermediate)
   - Q4-Q7: Project Deep-Dives (Intermediate-Advanced)
@@ -184,6 +202,7 @@ Respond ONLY with valid JSON in this exact format, no extra text:
 `;
 
   try {
+    const ai = getGeminiClient();
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
       contents: prompt,
@@ -203,22 +222,168 @@ Respond ONLY with valid JSON in this exact format, no extra text:
     };
   } catch (err) {
     console.error("generateInterviewQuestions failed, generating tailored fallback questions:", err.message);
-    const skillsList = skills && skills.length > 0 ? skills : ["software development tools"];
-    const projectsList = projects && projects.length > 0 ? projects : ["projects on your resume"];
+
+    // Highly customized programmatic fallback questions generator
+    const TECH_QUESTIONS = {
+      "javascript": [
+        "What is the event loop in JavaScript, and how does it handle asynchronous callbacks vs microtasks?",
+        "Explain hoisting and the temporal dead zone in JavaScript, and how let/const differ from var.",
+        "How do prototypes and prototypal inheritance work in JavaScript? Explain the difference between __proto__ and prototype."
+      ],
+      "typescript": [
+        "What is the difference between an interface and a type alias in TypeScript, and when would you use one over the other?",
+        "Explain generics in TypeScript and how you can use them to build type-safe, reusable components.",
+        "What are utility types in TypeScript (like Pick, Omit, Partial, and Record), and how do they work?"
+      ],
+      "python": [
+        "Explain the difference between deep copy and shallow copy in Python, and how the copy module works.",
+        "What is the Global Interpreter Lock (GIL) in Python, and how does it impact multi-threaded programs?",
+        "How do decorators work in Python? Write a simple decorator that measures the execution time of a function."
+      ],
+      "react": [
+        "Explain the virtual DOM reconciler algorithm in React (Fiber) and how state updates are processed.",
+        "What are React Hooks rules, and how does the useEffect cleanup function handle memory leaks?",
+        "Compare Redux, Context API, and Zustand for state management in large React applications."
+      ],
+      "node.js": [
+        "What is the event loop in Node.js? Explain the phases (timers, poll, check) and how process.nextTick() differs from setImmediate().",
+        "How do Node.js streams work, and why are they preferred over fs.readFile for handling large files?",
+        "Explain the cluster module in Node.js and how it can be used to leverage multi-core CPU architectures."
+      ],
+      "express.js": [
+        "How does middleware chain propagation and error handling work in Express.js?",
+        "How do you secure Express.js applications using security best practices (e.g. Helmet, CORS, rate limiting)?"
+      ],
+      "mongodb": [
+        "How does indexing work in MongoDB, and what is the performance difference between a single field index and a compound index?",
+        "Explain the aggregation pipeline in MongoDB and how stages like $lookup, $unwind, and $group are optimized."
+      ],
+      "postgresql": [
+        "What is database normalization, and explain the difference between INNER JOIN, LEFT JOIN, and outer joins in SQL/PostgreSQL.",
+        "How do transactions, ACID properties, and isolation levels function in PostgreSQL?"
+      ],
+      "docker": [
+        "What is the difference between a Docker image and a Docker container, and how does layered caching optimize builds?",
+        "How do Docker volumes work, and how do you share data between containers?"
+      ],
+      "kubernetes": [
+        "What is a Pod in Kubernetes, and how does a Deployment manage replica sets and rolling updates?",
+        "Explain service discovery and ingress controller routing in Kubernetes clusters."
+      ],
+      "aws": [
+        "What is the difference between horizontal and vertical scaling on AWS (e.g. EC2 vs Auto Scaling)?",
+        "How do you design a secure, serverless backend architecture using AWS Lambda, API Gateway, and DynamoDB?"
+      ],
+      "tensorflow": [
+        "What is the difference between a tensor and a regular array, and how does computational graph execution optimize training in TensorFlow?",
+        "Explain the concept of backpropagation and gradient descent in neural networks."
+      ],
+      "pytorch": [
+        "How does autograd function in PyTorch to compute gradients automatically during the backward pass?",
+        "Explain how you would transfer a PyTorch model and tensors to a GPU/CUDA device for training acceleration."
+      ]
+    };
+
+    const generated = [];
+
+    // 1. Technical / Syntax (3 questions)
+    const matchingQuestions = [];
+    for (const skill of skillsList) {
+      const lowerSkill = skill.toLowerCase();
+      if (TECH_QUESTIONS[lowerSkill]) {
+        matchingQuestions.push(...TECH_QUESTIONS[lowerSkill]);
+      }
+    }
+
+    // Shuffle and pick 3 unique ones
+    const shuffledTech = [...new Set(matchingQuestions)].sort(() => 0.5 - Math.random()).slice(0, 3);
+    shuffledTech.forEach(q => {
+      generated.push({ type: "technical", question: q });
+    });
+
+    // Fallback if not enough matching tech questions
+    while (generated.length < 3) {
+      const randomSkill = skillsList[Math.floor(Math.random() * skillsList.length)];
+      generated.push({
+        type: "technical",
+        question: `Can you explain the core syntax, execution flow, or architectural patterns of systems built using ${randomSkill}?`
+      });
+    }
+
+    // 2. Project-based (4 questions)
+    const activeProjects = Array.isArray(structuredProjects) && structuredProjects.length > 0
+      ? structuredProjects
+      : projectsList.map(p => ({ name: p, technologies: [], features: [] }));
+
+    if (activeProjects.length > 0) {
+      let projIndex = 0;
+      for (let i = 0; i < 4; i++) {
+        const proj = activeProjects[projIndex % activeProjects.length];
+        const techStr = Array.isArray(proj.technologies) && proj.technologies.length > 0
+          ? proj.technologies.slice(0, 2).join(" and ")
+          : "";
+        const feat = proj.features && proj.features[0] ? proj.features[0] : null;
+
+        if (i === 0) {
+          generated.push({
+            type: "project",
+            question: `In your project "${proj.name}"${techStr ? ` using ${techStr}` : ""}, can you explain the overall software architecture and how data flows through the system?`
+          });
+        } else if (i === 1 && feat) {
+          generated.push({
+            type: "project",
+            question: `For the "${proj.name}" project, how did you implement the "${feat}" capability? Describe the integration details or difficulties you encountered.`
+          });
+        } else if (i === 2) {
+          generated.push({
+            type: "project",
+            question: `What was the most challenging technical decision or bug you resolved during the development of "${proj.name}", and how did you verify the solution?`
+          });
+        } else {
+          generated.push({
+            type: "project",
+            question: `If you had to scale the backend or infrastructure of "${proj.name}" to handle 10x more concurrent users, what bottlenecks would you expect to hit first?`
+          });
+        }
+        projIndex++;
+      }
+    } else {
+      // Fallback if no projects at all
+      generated.push({
+        type: "project",
+        question: "Can you detail a key coding project or assignment you worked on, outlining the technologies chosen and the overall system design?"
+      });
+      generated.push({
+        type: "project",
+        question: "Describe a major performance optimization or database design task you handled in your projects, and how you tested the results."
+      });
+      generated.push({
+        type: "project",
+        question: "How do you manage dependency versions, deployment pipeline configurations, or environment variables in your software projects?"
+      });
+      generated.push({
+        type: "project",
+        question: "What is your approach to writing clean, documentable, and unit-tested code for new features or custom APIs?"
+      });
+    }
+
+    // 3. Behavioral / Scenario (3 questions)
+    const primaryProj = activeProjects[0]?.name || "your primary project";
+    generated.push({
+      type: "behavioral",
+      question: `Tell me about a scenario during the development of "${primaryProj}" where project goals or deadlines changed. How did you adapt your tasks?`
+    });
+    generated.push({
+      type: "behavioral",
+      question: "Describe a situation where you worked on a group coding project and a teammate disagreed with your technical design. How did you reach consensus?"
+    });
+    generated.push({
+      type: "behavioral",
+      question: `What is your process for balancing developer velocity versus technical debt when delivering milestones for "${primaryProj}"?`
+    });
 
     return {
-      questions: [
-        { type: "technical", question: `Can you explain your experience and depth of knowledge working with ${skillsList.slice(0, 3).join(", ")}?` },
-        { type: "technical", question: `What is the most significant technical challenge you faced when building ${projectsList[0] || "your projects"}, and how did you resolve it?` },
-        { type: "technical", question: `How do you handle state management, performance optimization, or caching in applications built using ${skillsList[0] || "modern frameworks"}?` },
-        { type: "technical", question: `If you had to redesign the architecture of ${projectsList[0] || "your primary project"}, what changes would you make and why?` },
-        { type: "technical", question: `Can you walk us through the database design or data flow of ${projectsList[1] || projectsList[0] || "your projects"}?` },
-        { type: "technical", question: `How do you approach writing clean, maintainable, and well-tested code for platforms utilizing ${skillsList.slice(1, 4).join(", ") || "various technologies"}?` },
-        { type: "project", question: `Which specific feature of ${projectsList[0] || "your project"} did you find most challenging to implement, and how did you verify its correctness?` },
-        { type: "project", question: `How did you manage deployment, CI/CD, or scaling for ${projectsList[0] || "your applications"}?` },
-        { type: "behavioral", question: "Tell me about a time when you had to work with a teammate who had a very different perspective on a technical design decision. How did you align?" },
-        { type: "behavioral", question: "Describe a situation where a project requirement changed midway through development. How did you adapt your implementation?" }
-      ]
+      questions: generated.slice(0, 10)
     };
   }
 }

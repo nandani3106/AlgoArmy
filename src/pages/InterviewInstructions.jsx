@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { loadTrackingScripts, startFaceTracking } from '../utils/faceTracking';
+import { useProctoring } from '../contexts/ProctoringContext';
 
 const CRITERIA = [
   { icon: Brain, label: 'Technical Knowledge', desc: 'DSA, system design, and core concepts' },
@@ -32,6 +33,29 @@ const InterviewInstructions = () => {
   const [micStream, setMicStream] = useState(null);
   const [faceStatus, setFaceStatus] = useState('');
   const [videoReady, setVideoReady] = useState(false);
+
+  const {
+    cameraStream, setCameraStream,
+    micStream: globalMicStream, setMicStream: setGlobalMicStream,
+    screenStream, setScreenStream
+  } = useProctoring();
+
+  const streamRef = useRef(null);
+  const micStreamRef = useRef(null);
+  const screenStreamRef = useRef(null);
+  const isProceedingToRoom = useRef(false);
+
+  useEffect(() => {
+    streamRef.current = stream;
+  }, [stream]);
+
+  useEffect(() => {
+    micStreamRef.current = micStream;
+  }, [micStream]);
+
+  useEffect(() => {
+    screenStreamRef.current = screenStream;
+  }, [screenStream]);
 
   const [permissions, setPermissions] = useState({
     camera: 'pending',
@@ -107,17 +131,26 @@ const InterviewInstructions = () => {
     setupVideo();
   }, [stream]);
 
-  // Clean up stream on unmount
+  // Clean up stream on unmount ONLY if we are NOT proceeding to the room
   useEffect(() => {
     return () => {
-      if (stream) {
-        stream.getTracks().forEach(t => t.stop());
-      }
-      if (micStream) {
-        micStream.getTracks().forEach(t => t.stop());
+      const isGoingToRoom = window.location.pathname.includes('/room') || isProceedingToRoom.current;
+      if (!isGoingToRoom) {
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(t => t.stop());
+        }
+        if (micStreamRef.current) {
+          micStreamRef.current.getTracks().forEach(t => t.stop());
+        }
+        if (screenStreamRef.current) {
+          screenStreamRef.current.getTracks().forEach(t => t.stop());
+          setScreenStream(null);
+        }
+        setCameraStream(null);
+        setGlobalMicStream(null);
       }
     };
-  }, [stream, micStream]);
+  }, [setScreenStream, setCameraStream, setGlobalMicStream]);
 
   // Face tracking hook
   useEffect(() => {
@@ -216,6 +249,7 @@ const InterviewInstructions = () => {
         }
         const str = await navigator.mediaDevices.getUserMedia({ video: true });
         setStream(str);
+        setCameraStream(str);
         toast.info("Camera active. Align your face to complete verification.");
       } catch (err) {
         setPermissions(prev => ({ ...prev, camera: 'denied' }));
@@ -229,6 +263,7 @@ const InterviewInstructions = () => {
         }
         const str = await navigator.mediaDevices.getUserMedia({ audio: true });
         setMicStream(str);
+        setGlobalMicStream(str);
         setPermissions(prev => ({ ...prev, mic: 'granted' }));
         toast.success("Microphone permission granted successfully.");
       } catch (err) {
@@ -253,7 +288,7 @@ const InterviewInstructions = () => {
           return;
         }
 
-        str.getTracks().forEach(t => t.stop());
+        setScreenStream(str);
         setPermissions(prev => ({ ...prev, screen: 'granted' }));
         toast.success("Screen capture sharing granted successfully!");
       } catch (err) {
@@ -319,6 +354,7 @@ const InterviewInstructions = () => {
       }
       const str = await navigator.mediaDevices.getUserMedia({ video: true });
       setStream(str);
+      setCameraStream(str);
     } catch (e) {
       setPermissions(prev => ({ ...prev, camera: 'denied' }));
     }
@@ -331,6 +367,7 @@ const InterviewInstructions = () => {
       }
       const str = await navigator.mediaDevices.getUserMedia({ audio: true });
       setMicStream(str);
+      setGlobalMicStream(str);
       setPermissions(prev => ({ ...prev, mic: 'granted' }));
     } catch (e) {
       setPermissions(prev => ({ ...prev, mic: 'denied' }));
@@ -367,6 +404,7 @@ const InterviewInstructions = () => {
   };
 
   const handleStartInterview = () => {
+    isProceedingToRoom.current = true;
     if (id && id !== 'instructions') {
       navigate(`/interviews/${id}/room`);
     } else {

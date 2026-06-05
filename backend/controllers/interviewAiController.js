@@ -8,6 +8,7 @@ import {
   extractResumeData,
   generateInterviewQuestions,
   evaluateInterviewResponse,
+  detectDevicesInImage,
 } from "../services/geminiService.js";
 
 /**
@@ -17,7 +18,7 @@ import {
  */
 export const submitInterview = async (req, res) => {
   try {
-    const { questions, answers } = req.body;
+    const { questions, answers, violations, violationCount, integrityScore } = req.body;
     const userId = req.user._id;
 
     if (!questions || !answers || questions.length === 0) {
@@ -33,6 +34,12 @@ export const submitInterview = async (req, res) => {
     // 2. Evaluate via Gemini
     const evaluation = await evaluateInterviewResponse({ questions, answers });
 
+    // Determine status based on violations
+    let status = "Completed";
+    if (violationCount >= 5 || (integrityScore !== undefined && integrityScore < 50)) {
+      status = "Flagged";
+    }
+
     // 3. Save to database
     const result = new InterviewResult({
       user: userId,
@@ -46,6 +53,10 @@ export const submitInterview = async (req, res) => {
       strengths: evaluation.strengths,
       improvements: evaluation.improvements,
       feedback: evaluation.feedback || [],
+      status,
+      violations: violations || [],
+      violationCount: violationCount || 0,
+      integrityScore: integrityScore !== undefined ? integrityScore : 100
     });
 
     await result.save();
@@ -128,14 +139,17 @@ export const parseResumeAndGenerateQuestions = async (req, res) => {
     // 5. Save extracted text to the user document
     user.extractedResumeText = resumeText;
 
-    // 6. Extract skills and projects via Gemini
-    let skills, projects;
+    // 6. Extract skills and projects via Gemini/local engine
+    let skills, projects, structuredSkills, structuredProjects, candidateProfile;
     try {
       const extracted = await extractResumeData(resumeText);
       skills = extracted.skills;
       projects = extracted.projects;
+      structuredSkills = extracted.structuredSkills;
+      structuredProjects = extracted.structuredProjects;
+      candidateProfile = extracted.candidateProfile;
     } catch (aiErr) {
-      console.error("Gemini Extract Error:", aiErr.message);
+      console.error("Extract Error:", aiErr.message);
       return res.status(502).json({
         success: false,
         message: "AI service failed to analyze the resume. Please try again.",
@@ -145,6 +159,9 @@ export const parseResumeAndGenerateQuestions = async (req, res) => {
     // 7. Save extracted data to the user document
     user.skills = skills;
     user.projects = projects;
+    user.structuredSkills = structuredSkills;
+    user.structuredProjects = structuredProjects;
+    user.candidateProfile = candidateProfile;
     await user.save();
 
     // 8. Generate interview questions based on the profile
@@ -155,6 +172,9 @@ export const parseResumeAndGenerateQuestions = async (req, res) => {
         role: user.role,
         skills,
         projects,
+        structuredSkills,
+        structuredProjects,
+        candidateProfile
       });
       questions = result.questions;
     } catch (aiErr) {
@@ -211,6 +231,9 @@ export const regenerateInterviewQuestions = async (req, res) => {
         role: user.role,
         skills: user.skills,
         projects: user.projects || [],
+        structuredSkills: user.structuredSkills,
+        structuredProjects: user.structuredProjects,
+        candidateProfile: user.candidateProfile
       });
       questions = result.questions;
     } catch (aiErr) {
@@ -235,5 +258,28 @@ export const regenerateInterviewQuestions = async (req, res) => {
       success: false,
       message: "Internal server error",
     });
+  }
+};
+
+/**
+ * @desc    Detect unauthorized devices in a webcam frame for interviews
+ * @route   POST /api/interview-ai/detect-devices
+ * @access  Private
+ */
+export const detectInterviewDevices = async (req, res) => {
+  try {
+    const { image } = req.body;
+    if (!image) {
+      return res.status(400).json({ success: false, message: "No image frame provided" });
+    }
+
+    const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
+
+    const result = await detectDevicesInImage(base64Data);
+    
+    res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    console.error("Detect Interview Devices Error:", error.message);
+    res.status(500).json({ success: false, message: "Error running device detection" });
   }
 };

@@ -54,6 +54,16 @@ const interviewResultSchema = new mongoose.Schema(
       default: "Completed",
     },
     summary: String,
+    violations: [
+      {
+        eventType: { type: String, required: true },
+        description: { type: String },
+        severity: { type: String, enum: ["INFO", "WARNING", "CRITICAL"], default: "CRITICAL" },
+        timestamp: { type: Date, default: Date.now }
+      }
+    ],
+    violationCount: { type: Number, default: 0 },
+    integrityScore: { type: Number, default: 100 }
   },
   {
     timestamps: true,

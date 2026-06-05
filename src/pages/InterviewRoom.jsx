@@ -2,11 +2,12 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Mic, MicOff, Camera, CameraOff, Clock, ChevronRight,
-  MessageSquare, SkipForward, Loader2, AlertCircle, Volume2
+  MessageSquare, SkipForward, Loader2, AlertCircle, Volume2, AlertTriangle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { loadTrackingScripts, startFaceTracking } from '../utils/faceTracking';
 import BrandLogo from '../components/BrandLogo';
+import { useProctoring } from '../contexts/ProctoringContext';
 
 const API_BASE = 'http://localhost:5000';
 
@@ -55,11 +56,27 @@ const InterviewRoom = () => {
   }, []);
 
   // Proctoring references and states
+  const {
+    cameraStream, setCameraStream,
+    micStream: globalMicStream, setMicStream: setGlobalMicStream,
+    screenStream: globalScreenStream,
+    clearStreams
+  } = useProctoring();
+
   const videoRef = useRef(null);
   const [proctorStream, setProctorStream] = useState(null);
   const [screenStream, setScreenStream] = useState(null);
   const [violationCount, setViolationCount] = useState(0);
+  const [violations, setViolations] = useState([]);
+  const [integrityScore, setIntegrityScore] = useState(100);
   const lastMultiFaceViolationRef = useRef(0);
+  const lastNoFaceViolationRef = useRef(0);
+  const multiFaceStartRef = useRef(null);
+  const noFaceStartRef = useRef(null);
+  const hasLoggedMultiFaceRef = useRef(false);
+  const hasLoggedNoFaceRef = useRef(false);
+  const deviceStartRef = useRef(null);
+  const hasLoggedDeviceRef = useRef(false);
   const [videoReady, setVideoReady] = useState(false);
 
   // Load questions
@@ -179,18 +196,23 @@ const InterviewRoom = () => {
     }
   };
 
-  const finishInterview = async (finalAnswers) => {
+  const finishInterview = useCallback(async (finalAnswers, currentViolations = violations, currentViolationCount = violationCount, currentIntegrityScore = integrityScore) => {
     setSubmitting(true);
     // Cleanup proctoring streams on completion
-    if (proctorStream) proctorStream.getTracks().forEach(t => t.stop());
-    if (screenStream) screenStream.getTracks().forEach(t => t.stop());
+    clearStreams();
 
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(`${API_BASE}/api/interview-ai/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ questions, answers: finalAnswers })
+        body: JSON.stringify({
+          questions,
+          answers: finalAnswers,
+          violations: currentViolations,
+          violationCount: currentViolationCount,
+          integrityScore: currentIntegrityScore
+        })
       });
       const data = await res.json();
       if (data.success) {
@@ -203,58 +225,54 @@ const InterviewRoom = () => {
     } finally {
       setSubmitting(false);
     }
-  };
+  }, [questions, violations, violationCount, integrityScore, clearStreams, navigate]);
 
   const logViolation = useCallback(async (eventType, description) => {
     toast.warning(`Proctoring Warning: ${eventType} - ${description}`, { duration: 5000 });
     console.warn(`[Proctoring Violation] Event: ${eventType}, Details: ${description}`);
 
-    const isNonSubmitting = [
-      "No face detected",
-      "Multiple faces detected",
-      "Unauthorized device detected",
-      "Camera disabled",
-      "Microphone disabled"
-    ].includes(eventType);
+    const criticalViolations = [
+      "Tab switched",
+      "Window unfocused",
+      "Fullscreen exited",
+      "Screen sharing stopped",
+      "Internet disconnected"
+    ];
 
-    let activeCount = violationCount;
-    if (!isNonSubmitting) {
-      activeCount = violationCount + 1;
-      setViolationCount(prev => {
-        const next = prev + 1;
-        activeCount = next;
-        return next;
+    const severity = criticalViolations.includes(eventType) ? "CRITICAL" : "WARNING";
+    const newViolation = { eventType, description, severity, timestamp: new Date() };
+
+    setViolations(prev => {
+      const nextViolations = [...prev, newViolation];
+      
+      // Calculate violationCount and integrityScore
+      const nextViolationCount = nextViolations.filter(v => v.severity === "CRITICAL" || v.severity === "WARNING").length;
+      let score = 100;
+      nextViolations.forEach(v => {
+        if (v.severity === "CRITICAL") {
+          score -= 20;
+        } else if (v.severity === "WARNING") {
+          score -= 5;
+        }
       });
-    }
+      const nextIntegrityScore = Math.max(0, score);
 
-    if (id && id !== 'room') {
-      try {
-        const token = localStorage.getItem('token');
-        await fetch(`${API_BASE}/api/oa/${id}/log-violation`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify({ eventType, description })
-        });
-      } catch (err) {
-        console.error("Failed to log violation on backend:", err);
-      }
-    }
+      setViolationCount(nextViolationCount);
+      setIntegrityScore(nextIntegrityScore);
 
-    if (!isNonSubmitting) {
-      if (activeCount >= 5) {
+      if (nextViolationCount >= 5) {
         toast.error("Maximum proctoring violations reached. Terminating interview session...", { duration: 8000 });
         const currentTranscript = transcript.filter(m => m.role === 'user').map(m => m.text).join(' ');
         const newAnswers = [...userAnswers];
         newAnswers[currentQ] = currentTranscript || "No verbal response recorded.";
-        finishInterview(newAnswers);
+        finishInterview(newAnswers, nextViolations, nextViolationCount, nextIntegrityScore);
       } else {
-        toast.error(`Warning: ${5 - activeCount} violations remaining before automatic session shutdown!`, { duration: 6000 });
+        toast.error(`Warning: ${5 - nextViolationCount} violations remaining before automatic session shutdown!`, { duration: 6000 });
       }
-    }
-  }, [id, violationCount, userAnswers, currentQ, transcript, finishInterview]);
+
+      return nextViolations;
+    });
+  }, [userAnswers, currentQ, transcript, finishInterview]);
 
   const proctorStreamRef = useRef(null);
   const screenStreamRef = useRef(null);
@@ -267,7 +285,7 @@ const InterviewRoom = () => {
     screenStreamRef.current = screenStream;
   }, [screenStream]);
 
-  // Start proctor streams once components mount
+  // Start/Recover proctor streams once component mounts
   useEffect(() => {
     let isActive = true;
     let localProctorStream = null;
@@ -275,39 +293,53 @@ const InterviewRoom = () => {
 
     const startProctoring = async () => {
       try {
-        const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
-        const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const media = new MediaStream([
-          ...videoStream.getVideoTracks(),
-          ...audioStream.getAudioTracks()
+        let camMedia = cameraStream;
+        const isCameraActive = camMedia && camMedia.getVideoTracks().length > 0 && camMedia.getVideoTracks().every(t => t.readyState === 'live' && t.enabled);
+        if (!isCameraActive) {
+          console.log("[PROCTORING] Camera stream is inactive or missing. Requesting a fresh stream...");
+          camMedia = await navigator.mediaDevices.getUserMedia({ video: true });
+          setCameraStream(camMedia);
+        }
+
+        let audioMedia = globalMicStream;
+        const isMicActive = audioMedia && audioMedia.getAudioTracks().length > 0 && audioMedia.getAudioTracks().every(t => t.readyState === 'live' && t.enabled);
+        if (!isMicActive) {
+          console.log("[PROCTORING] Mic stream is inactive or missing. Requesting a fresh stream...");
+          audioMedia = await navigator.mediaDevices.getUserMedia({ audio: true });
+          setGlobalMicStream(audioMedia);
+        }
+
+        if (!isActive) return;
+
+        // Merge video and audio tracks for visual feed
+        const merged = new MediaStream([
+          ...camMedia.getVideoTracks(),
+          ...audioMedia.getAudioTracks()
         ]);
-        if (!isActive) {
-          media.getTracks().forEach(t => t.stop());
-          return;
-        }
-        localProctorStream = media;
-        setProctorStream(media);
+        localProctorStream = merged;
+        setProctorStream(merged);
 
-        const screen = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        let screen = globalScreenStream;
+        const isScreenActive = screen && screen.getVideoTracks().length > 0 && screen.getVideoTracks().every(t => t.readyState === 'live' && t.enabled);
+        if (!isScreenActive) {
+          console.log("[PROCTORING] Screen stream is inactive or missing. Requesting fresh screen share...");
+          screen = await navigator.mediaDevices.getDisplayMedia({ video: true });
+          const screenTrack = screen.getVideoTracks()[0];
+          const screenSettings = screenTrack ? screenTrack.getSettings() : {};
+          const displaySurface = screenSettings.displaySurface;
 
-        const screenTrack = screen.getVideoTracks()[0];
-        const screenSettings = screenTrack ? screenTrack.getSettings() : {};
-        const displaySurface = screenSettings.displaySurface;
-
-        console.log(`[SCREEN] displaySurface: ${displaySurface}`);
-
-        if (displaySurface !== 'monitor') {
-          screen.getTracks().forEach(t => t.stop());
-          if (localProctorStream) {
-            localProctorStream.getTracks().forEach(t => t.stop());
+          if (displaySurface !== 'monitor') {
+            screen.getTracks().forEach(t => t.stop());
+            if (localProctorStream) {
+              localProctorStream.getTracks().forEach(t => t.stop());
+            }
+            toast.error("Please share your entire screen. Browser tabs and application windows are not allowed.");
+            throw new Error("Entire screen sharing is required");
           }
-          toast.error("Please share your entire screen. Browser tabs and application windows are not allowed.");
-          throw new Error("Entire screen sharing is required");
         }
 
         if (!isActive) {
-          screen.getTracks().forEach(t => t.stop());
-          if (localProctorStream) localProctorStream.getTracks().forEach(t => t.stop());
+          if (!isScreenActive && screen) screen.getTracks().forEach(t => t.stop());
           return;
         }
         localScreenStream = screen;
@@ -333,10 +365,8 @@ const InterviewRoom = () => {
 
     return () => {
       isActive = false;
-      if (localProctorStream) localProctorStream.getTracks().forEach(t => t.stop());
-      if (localScreenStream) localScreenStream.getTracks().forEach(t => t.stop());
     };
-  }, []);
+  }, [cameraStream, globalMicStream, globalScreenStream, setCameraStream, setGlobalMicStream]);
 
   // Bind proctorStream to video element when it becomes available
   useEffect(() => {
@@ -369,11 +399,34 @@ const InterviewRoom = () => {
         trackerInstance = startFaceTracking(videoRef.current, (faces) => {
           if (!isActive) return;
           if (faces.length > 1) {
-            const now = Date.now();
-            if (now - lastMultiFaceViolationRef.current > 15000) {
-              lastMultiFaceViolationRef.current = now;
-              logViolation("Multiple faces detected", "More than one person was detected in the camera frame.");
+            noFaceStartRef.current = null;
+            hasLoggedNoFaceRef.current = false;
+
+            if (multiFaceStartRef.current === null) {
+              multiFaceStartRef.current = Date.now();
+            } else if (Date.now() - multiFaceStartRef.current >= 3000) {
+              if (!hasLoggedMultiFaceRef.current) {
+                hasLoggedMultiFaceRef.current = true;
+                logViolation("Multiple faces detected", "More than one person was detected in the camera frame.");
+              }
             }
+          } else if (faces.length === 0) {
+            multiFaceStartRef.current = null;
+            hasLoggedMultiFaceRef.current = false;
+
+            if (noFaceStartRef.current === null) {
+              noFaceStartRef.current = Date.now();
+            } else if (Date.now() - noFaceStartRef.current >= 3000) {
+              if (!hasLoggedNoFaceRef.current) {
+                hasLoggedNoFaceRef.current = true;
+                logViolation("No face detected", "No face was detected in the camera frame.");
+              }
+            }
+          } else {
+            multiFaceStartRef.current = null;
+            hasLoggedMultiFaceRef.current = false;
+            noFaceStartRef.current = null;
+            hasLoggedNoFaceRef.current = false;
           }
         });
       } catch (err) {
@@ -389,6 +442,78 @@ const InterviewRoom = () => {
     };
   }, [proctorStream, logViolation, videoReady]);
 
+  // Periodic device detection (phone, other screens)
+  useEffect(() => {
+    if (!proctorStream || !videoRef.current || !videoReady) return;
+
+    let isActive = true;
+    let timerId = null;
+
+    const performDeviceDetection = async () => {
+      if (!isActive) return;
+
+      try {
+        const videoElement = videoRef.current;
+        if (videoElement.readyState >= 2 && !videoElement.paused && !videoElement.ended) {
+          const canvas = document.createElement('canvas');
+          canvas.width = videoElement.videoWidth || 640;
+          canvas.height = videoElement.videoHeight || 480;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+            const base64Image = canvas.toDataURL('image/jpeg', 0.5);
+
+            const token = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE}/api/interview-ai/detect-devices`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+              },
+              body: JSON.stringify({ image: base64Image })
+            });
+
+            if (response.ok) {
+              const data = await response.json();
+              if (data.success && data.deviceDetected && isActive) {
+                if (deviceStartRef.current === null) {
+                  deviceStartRef.current = Date.now();
+                } else if (Date.now() - deviceStartRef.current >= 3000) {
+                  if (!hasLoggedDeviceRef.current) {
+                    hasLoggedDeviceRef.current = true;
+                    console.log(`[PROCTORING] Device detected: ${data.deviceName} - ${data.explanation}`);
+                    logViolation(
+                      "Unauthorized device detected",
+                      `An unauthorized device (${data.deviceName || "electronic device"}) was detected in the camera frame. Details: ${data.explanation}`
+                    );
+                  }
+                }
+              } else if (data.success && !data.deviceDetected) {
+                deviceStartRef.current = null;
+                hasLoggedDeviceRef.current = false;
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error during device detection proctoring:", err);
+      }
+
+      // Run check every 5 seconds to support responsive 3-second continuous checking
+      if (isActive) {
+        timerId = setTimeout(performDeviceDetection, 5000);
+      }
+    };
+
+    // Delay the first check by 5 seconds to let the candidate settle
+    timerId = setTimeout(performDeviceDetection, 5000);
+
+    return () => {
+      isActive = false;
+      if (timerId) clearTimeout(timerId);
+    };
+  }, [proctorStream, videoReady, logViolation]);
+
   // 1. Camera track ending
   useEffect(() => {
     if (!proctorStream) return;
@@ -396,12 +521,16 @@ const InterviewRoom = () => {
     if (!videoTrack) return;
 
     const handleEnded = () => {
-      logViolation("Camera disabled", "Candidate camera track stopped or disconnected.");
+      toast.error("Camera stream was stopped or disconnected. Terminating session...", { duration: 8000 });
+      const currentTranscript = transcript.filter(m => m.role === 'user').map(m => m.text).join(' ');
+      const newAnswers = [...userAnswers];
+      newAnswers[currentQ] = currentTranscript || "No verbal response recorded.";
+      finishInterview(newAnswers);
     };
 
     videoTrack.addEventListener('ended', handleEnded);
     return () => videoTrack.removeEventListener('ended', handleEnded);
-  }, [proctorStream, logViolation]);
+  }, [proctorStream, userAnswers, currentQ, transcript, finishInterview]);
 
   // 2. Microphone track ending
   useEffect(() => {
@@ -482,20 +611,7 @@ const InterviewRoom = () => {
     };
   }, [logViolation]);
 
-  // Camera toggle handler
-  const handleCamToggle = () => {
-    if (proctorStream) {
-      const videoTrack = proctorStream.getVideoTracks()[0];
-      if (videoTrack) {
-        const nextState = !camOn;
-        videoTrack.enabled = nextState;
-        setCamOn(nextState);
-        if (!nextState) {
-          logViolation("Camera disabled manually", "Candidate manually turned off their camera stream.");
-        }
-      }
-    }
-  };
+
 
   // Microphone toggle handler
   const handleMicToggle = () => {
@@ -732,8 +848,9 @@ const InterviewRoom = () => {
               </div>
 
               {violationCount > 0 && (
-                <div className="absolute bottom-6 left-6 px-3 py-1.5 rounded-xl bg-red-600/95 text-white text-[9px] font-black uppercase tracking-widest animate-pulse border border-red-500/20 z-10">
-                  {violationCount} Violations
+                <div className="absolute bottom-6 left-6 px-3 py-1.5 rounded-xl bg-red-600/95 text-white text-[9px] font-black uppercase tracking-widest border border-red-500/20 z-10 flex flex-col gap-1">
+                  <span className="animate-pulse">{violationCount} Violations</span>
+                  <span className="text-[8px] text-white/70">Integrity: {integrityScore}%</span>
                 </div>
               )}
             </div>
@@ -755,9 +872,6 @@ const InterviewRoom = () => {
             <div className="flex items-center gap-4">
               <button onClick={handleMicToggle} className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${micOn ? 'bg-white/10 hover:bg-white/20' : 'bg-red-500/20 text-red-500 border border-red-500/20'}`}>
                 {micOn ? <Mic size={20} /> : <MicOff size={20} />}
-              </button>
-              <button onClick={handleCamToggle} className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${camOn ? 'bg-white/10 hover:bg-white/20' : 'bg-red-500/20 text-red-500 border border-red-500/20'}`}>
-                {camOn ? <Camera size={20} /> : <CameraOff size={20} />}
               </button>
               <button
                 onClick={() => {
