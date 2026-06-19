@@ -1,6 +1,21 @@
 import Problem from "../models/problem.js";
 import axios from "axios";
 import { GoogleGenAI } from "@google/genai";
+import { extractMetadata } from "../services/codeWrapperService.js";
+
+
+const getFunctionMetadataFromStarterCode = (starterCodeObj) => {
+  if (!starterCodeObj) return null;
+  const languages = ['cpp', 'java', 'python', 'javascript'];
+  for (const lang of languages) {
+    const code = starterCodeObj[lang];
+    if (code) {
+      const meta = extractMetadata(code, lang);
+      if (meta) return meta;
+    }
+  }
+  return null;
+};
 
 
 // =============================
@@ -40,14 +55,14 @@ export const createProblem =
         constraintsArray = req.body.constraints.split("\n").map(c => c.trim()).filter(Boolean);
       }
 
-      // Map test cases array exactly with schema fields
+      // Map visible test cases array with schema fields
       let finalTestCases = [];
       if (req.body.testCases && req.body.testCases.length > 0) {
         finalTestCases = req.body.testCases.map(t => ({
           input: t.input,
           output: t.expectedOutput || t.output || "",
           expectedOutput: t.expectedOutput || t.output || "",
-          isHidden: t.isHidden !== undefined ? t.isHidden : false
+          isHidden: false
         }));
       } else {
         finalTestCases = [
@@ -58,6 +73,16 @@ export const createProblem =
             isHidden: false
           }
         ];
+      }
+
+      // Map hidden test cases separately
+      let finalHiddenTestCases = [];
+      if (req.body.hiddenTestCases && req.body.hiddenTestCases.length > 0) {
+        finalHiddenTestCases = req.body.hiddenTestCases.map(t => ({
+          input: t.input,
+          output: t.expectedOutput || t.output || "",
+          isHidden: true
+        }));
       }
 
       const problemData = {
@@ -79,7 +104,7 @@ export const createProblem =
           }
         ],
         testCases: finalTestCases,
-        hiddenTestCases: finalTestCases.map(tc => ({ input: tc.input, output: tc.expectedOutput, isHidden: true })),
+        hiddenTestCases: finalHiddenTestCases,
         leetcodeUrl: req.body.leetcodeLink,
         leetcodeLink: req.body.leetcodeLink,
         starterCode: {
@@ -87,22 +112,16 @@ export const createProblem =
           python: req.body.starterPython || "",
           java: req.body.starterJava || "",
           javascript: req.body.starterJs || "",
-        }
+        },
+        functionMetadata: getFunctionMetadataFromStarterCode({
+          cpp: req.body.starterCpp || "",
+          python: req.body.starterPython || "",
+          java: req.body.starterJava || "",
+          javascript: req.body.starterJs || "",
+        })
       };
 
-      // ✅ REQUIRED DEBUG LOGGING (MANDATORY SPECS REQUIREMENT #7)
-      const parsedProblem = {
-        title: problemData.title,
-        difficulty: problemData.difficulty,
-        tags: problemData.tags,
-        statement: problemData.statement,
-        examples: problemData.examples,
-        constraints: problemData.constraints,
-        testCases: problemData.testCases,
-        leetcodeUrl: problemData.leetcodeUrl,
-        starterCode: problemData.starterCode
-      };
-      console.log("Parsed LeetCode Problem:", parsedProblem);
+      console.log("Creating problem with test cases:", finalTestCases.length, "visible,", finalHiddenTestCases.length, "hidden");
 
       const problem = await Problem.create(problemData);
       res.status(201).json(problem);
@@ -113,6 +132,83 @@ export const createProblem =
       });
     }
   };
+
+
+// =============================
+// UPDATE PROBLEM
+// =============================
+export const updateProblem = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Map constraints
+    let constraintsArray = [];
+    if (Array.isArray(req.body.constraints)) {
+      constraintsArray = req.body.constraints;
+    } else if (typeof req.body.constraints === "string") {
+      constraintsArray = req.body.constraints.split("\n").map(c => c.trim()).filter(Boolean);
+    }
+
+    // Map visible test cases
+    let finalTestCases = [];
+    if (req.body.testCases && req.body.testCases.length > 0) {
+      finalTestCases = req.body.testCases.map(t => ({
+        input: t.input,
+        output: t.expectedOutput || t.output || "",
+        expectedOutput: t.expectedOutput || t.output || "",
+        isHidden: false
+      }));
+    }
+
+    // Map hidden test cases
+    let finalHiddenTestCases = [];
+    if (req.body.hiddenTestCases && req.body.hiddenTestCases.length > 0) {
+      finalHiddenTestCases = req.body.hiddenTestCases.map(t => ({
+        input: t.input,
+        output: t.expectedOutput || t.output || "",
+        isHidden: true
+      }));
+    }
+
+    const updateData = {
+      title: req.body.title,
+      difficulty: req.body.difficulty,
+      tags: req.body.tag ? [req.body.tag] : (req.body.tags || []),
+      description: req.body.statement || req.body.description || "",
+      statement: req.body.statement || req.body.description || "",
+      constraints: constraintsArray,
+      inputFormat: req.body.inputFormat || "Read standard inputs according to the description.",
+      outputFormat: req.body.outputFormat || "Print the output corresponding to the problem.",
+      sampleInput: req.body.sampleInput || (finalTestCases[0] ? finalTestCases[0].input : ""),
+      sampleOutput: req.body.sampleOutput || (finalTestCases[0] ? finalTestCases[0].expectedOutput : ""),
+      testCases: finalTestCases,
+      hiddenTestCases: finalHiddenTestCases,
+      leetcodeUrl: req.body.leetcodeLink,
+      leetcodeLink: req.body.leetcodeLink,
+      starterCode: {
+        cpp: req.body.starterCpp || "",
+        python: req.body.starterPython || "",
+        java: req.body.starterJava || "",
+        javascript: req.body.starterJs || "",
+      },
+      functionMetadata: getFunctionMetadataFromStarterCode({
+        cpp: req.body.starterCpp || "",
+        python: req.body.starterPython || "",
+        java: req.body.starterJava || "",
+        javascript: req.body.starterJs || "",
+      })
+    };
+
+    const problem = await Problem.findByIdAndUpdate(id, updateData, { new: true });
+    if (!problem) return res.status(404).json({ message: "Problem not found" });
+
+    console.log("Updated problem:", problem.title, "- TC:", finalTestCases.length, "HTC:", finalHiddenTestCases.length);
+    res.json(problem);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Error updating problem" });
+  }
+};
 
 
 // =============================
@@ -433,6 +529,8 @@ Do not include any markdown styling, only return raw JSON.
         }
       }
 
+      const extractedMeta = getFunctionMetadataFromStarterCode(starterCode);
+
       res.json({
         title: q.title,
         difficulty: q.difficulty,
@@ -450,6 +548,7 @@ Do not include any markdown styling, only return raw JSON.
         leetcodeUrl: url,
         leetcodeLink: url,
         starterCode,
+        functionMetadata: extractedMeta,
       });
     } catch (error) {
       console.log(error);

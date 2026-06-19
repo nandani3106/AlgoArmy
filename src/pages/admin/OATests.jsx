@@ -13,6 +13,26 @@ export default function OATests() {
   const [allProblems, setAllProblems] = useState([]);
   const [isEditing, setIsEditing] = useState(null); // stores ID of test being edited
 
+  const [problemSearch, setProblemSearch] = useState("");
+  const [problemDifficulty, setProblemDifficulty] = useState("All");
+  const [problemCategory, setProblemCategory] = useState("All");
+
+  const allTags = ["All", ...new Set(allProblems.flatMap(p => {
+    const pt = Array.isArray(p.tags) ? p.tags : p.tag ? [p.tag] : [];
+    return pt.filter(Boolean);
+  }))];
+
+  const filteredProblems = allProblems.filter((p) => {
+    const matchesSearch = p.title.toLowerCase().includes(problemSearch.toLowerCase());
+    
+    const matchesDifficulty = problemDifficulty === "All" || p.difficulty === problemDifficulty;
+    
+    const pTags = Array.isArray(p.tags) ? p.tags : p.tag ? [p.tag] : [];
+    const matchesTag = problemCategory === "All" || pTags.some(t => t.toLowerCase() === problemCategory.toLowerCase());
+    
+    return matchesSearch && matchesDifficulty && matchesTag;
+  });
+
   const getLocalISOString = (date) => {
     const tzoffset = date.getTimezoneOffset() * 60000;
     return (new Date(date - tzoffset)).toISOString().slice(0, 16);
@@ -251,15 +271,62 @@ export default function OATests() {
         {/* ================= CODING QUESTIONS ================= */}
         {(form.type === "Coding" || form.type === "Mixed") && (
           <div className="mt-8">
-            <h3 className={`font-bold mb-4 ${isDark ? "text-white" : ""}`}>Select Coding Problems</h3>
+            <h3 className={`font-bold mb-1 ${isDark ? "text-white" : ""}`}>Select Coding Problems</h3>
+            
+            {/* Search & Filter */}
+            <div className="flex flex-col md:flex-row gap-2 mb-3 max-w-2xl">
+              <input
+                type="text"
+                placeholder="Search problems..."
+                value={problemSearch}
+                onChange={(e) => setProblemSearch(e.target.value)}
+                className={`flex-1 px-3 py-1.5 rounded-lg border text-xs outline-none transition-all ${
+                  isDark
+                    ? "bg-[#1a1d2b] border-[#2d3348] text-slate-200 placeholder:text-slate-500 focus:border-orange-500/60"
+                    : "bg-white border-slate-300 text-slate-800 focus:border-orange-400"
+                }`}
+              />
+              <select
+                value={problemCategory}
+                onChange={(e) => setProblemCategory(e.target.value)}
+                className={`px-2 py-1.5 rounded-lg border text-xs outline-none transition-all ${
+                  isDark
+                    ? "bg-[#1a1d2b] border-[#2d3348] text-slate-200"
+                    : "bg-white border-slate-300 text-slate-800"
+                }`}
+              >
+                <option value="All">All Categories</option>
+                {allTags.filter(t => t !== "All").map(tag => (
+                  <option key={tag} value={tag}>{tag}</option>
+                ))}
+              </select>
+              <select
+                value={problemDifficulty}
+                onChange={(e) => setProblemDifficulty(e.target.value)}
+                className={`px-2 py-1.5 rounded-lg border text-xs outline-none transition-all ${
+                  isDark
+                    ? "bg-[#1a1d2b] border-[#2d3348] text-slate-200"
+                    : "bg-white border-slate-300 text-slate-800"
+                }`}
+              >
+                <option value="All">All Levels</option>
+                <option value="Easy">Easy</option>
+                <option value="Medium">Medium</option>
+                <option value="Hard">Hard</option>
+              </select>
+            </div>
+
             <div className={`border rounded-xl p-4 max-h-60 overflow-y-auto ${isDark ? "border-[#2d3348]" : "border-slate-200"}`}>
-              {allProblems.map((p) => (
+              {filteredProblems.map((p) => (
                 <label key={p._id} className={`flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50/10 cursor-pointer ${isDark ? "text-slate-300" : "text-slate-700"}`}>
                   <input type="checkbox" checked={form.selectedCodingQuestions.includes(p._id)} onChange={() => toggleProblem(p._id)} className="w-4 h-4 rounded text-orange-500 focus:ring-orange-500" />
                   <span className="text-sm font-medium">{p.title}</span>
-                  <span className="text-[10px] bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded ml-auto uppercase">{p.difficulty}</span>
+                  <span className="text-[10px] bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded ml-auto uppercase font-bold">{p.difficulty}</span>
                 </label>
               ))}
+              {filteredProblems.length === 0 && (
+                <p className="text-xs text-slate-500 text-center py-4">No matching problems</p>
+              )}
             </div>
           </div>
         )}

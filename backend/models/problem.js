@@ -71,10 +71,13 @@ const problemSchema = new mongoose.Schema(
       type: String,
     },
 
-    hiddenTestCases: {
-      type: Array,
-      default: [],
-    },
+    hiddenTestCases: [
+      {
+        input: String,
+        output: String,
+        isHidden: { type: Boolean, default: true }
+      }
+    ],
 
     leetcodeUrl: {
       type: String,
@@ -91,6 +94,17 @@ const problemSchema = new mongoose.Schema(
     starterCode: {
       type: starterCodeSchema,
       default: () => ({})
+    },
+
+    functionMetadata: {
+      functionName: String,
+      returnType: String,
+      parameters: [
+        {
+          type: { type: String },
+          name: String
+        }
+      ]
     },
 
     points: {

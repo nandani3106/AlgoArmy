@@ -142,7 +142,9 @@ const OAWorkspace = () => {
             if (q.type === 'coding') {
               const defaultLang = 'javascript';
               const saved = localStorage.getItem(getStorageKey(q._id, defaultLang));
-              initialAnswers[q._id] = { answer: saved || STARTER_TEMPLATES[defaultLang], language: defaultLang };
+              // Use problem's starter code if available, else fall back to generic template
+              const problemStarter = q.starterCode?.[defaultLang];
+              initialAnswers[q._id] = { answer: saved || problemStarter || STARTER_TEMPLATES[defaultLang], language: defaultLang };
             } else {
               initialAnswers[q._id] = { answer: '' };
             }
@@ -706,9 +708,12 @@ const OAWorkspace = () => {
   }, [logViolation]);
 
   const handleLanguageChange = (newLang) => {
-    const qId = questions[currentIdx]._id;
+    const q = questions[currentIdx];
+    const qId = q._id;
     const saved = localStorage.getItem(getStorageKey(qId, newLang));
-    handleAnswer(saved || STARTER_TEMPLATES[newLang], newLang);
+    // Use problem's starter code if available, else fall back to generic template
+    const problemStarter = q.starterCode?.[newLang];
+    handleAnswer(saved || problemStarter || STARTER_TEMPLATES[newLang], newLang);
   };
 
   if (loading) return (
@@ -783,8 +788,9 @@ const OAWorkspace = () => {
 
         <button
           onClick={() => {
-            if (window.confirm("Reset editor to starter templates?")) {
-              handleAnswer(STARTER_TEMPLATES[currentAns.language]);
+            if (window.confirm("Reset editor to problem's starter code?")) {
+              const problemStarter = currentQ?.starterCode?.[currentAns.language];
+              handleAnswer(problemStarter || STARTER_TEMPLATES[currentAns.language]);
             }
           }}
           className="p-1.5 bg-[#1a1c2e] border border-[#2b3052] rounded-lg text-slate-400 hover:text-white transition-all"

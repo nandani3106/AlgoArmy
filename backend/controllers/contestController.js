@@ -48,7 +48,8 @@ const syncContestProblems = async (contestId) => {
           java: p.starterCode?.java || "",
           python: p.starterCode?.python || "",
           javascript: p.starterCode?.javascript || p.starterCode?.js || "",
-        }
+        },
+        functionMetadata: p.functionMetadata || null,
       };
 
       await ContestProblem.findOneAndUpdate(
@@ -159,6 +160,9 @@ export const runContestCode = async (req, res) => {
       return res.status(400).json({ success: false, message: "Missing required fields" });
     }
 
+    // Sync first so we always have fresh test cases
+    await syncContestProblems(req.params.id);
+
     const problem = await ContestProblem.findById(problemId);
     if (!problem) return res.status(404).json({ success: false, message: "Problem not found" });
 
@@ -166,16 +170,22 @@ export const runContestCode = async (req, res) => {
     if (customInput) {
       testCases = [{ input: customInput, output: "", isHidden: false }];
     } else {
-      testCases = problem.sampleTestCases.map(tc => ({ ...tc.toObject(), isHidden: false }));
+      // Prefer sampleTestCases; fall back to testCases for older synced problems
+      const source = (problem.sampleTestCases && problem.sampleTestCases.length > 0)
+        ? problem.sampleTestCases
+        : (problem.testCases || []);
+      testCases = source.map(tc => ({
+        input: tc.input || "",
+        output: tc.output || tc.expectedOutput || "",
+        isHidden: false,
+      }));
     }
 
-    const evaluation = await evaluateCode(code, language, testCases, problem.timeLimit, problem.memoryLimit);
+    const evaluation = await evaluateCode(code, language, testCases, problem.timeLimit || 5, problem.memoryLimit || 256, problem.functionMetadata);
 
-    res.status(200).json({
-      success: true,
-      ...evaluation
-    });
+    res.status(200).json({ success: true, ...evaluation });
   } catch (error) {
+    console.error("Run Contest Code Error:", error.message);
     res.status(500).json({ success: false, message: "Execution error" });
   }
 };
@@ -214,13 +224,23 @@ export const submitContestSolution = async (req, res) => {
       }
     }
 
-    // Combine sample and hidden test cases
+    // Combine sample and hidden test cases — fall back to testCases for older problems
+    const sampleSrc = (problem.sampleTestCases && problem.sampleTestCases.length > 0)
+      ? problem.sampleTestCases
+      : [];
+    const hiddenSrc = problem.hiddenTestCases || [];
+    // If both are empty, fall back to testCases array
+    const fallback = (sampleSrc.length === 0 && hiddenSrc.length === 0)
+      ? (problem.testCases || [])
+      : [];
+
     const allTestCases = [
-      ...problem.sampleTestCases.map(tc => ({ ...tc.toObject(), isHidden: false })),
-      ...problem.hiddenTestCases.map(tc => ({ ...tc.toObject(), isHidden: true }))
+      ...sampleSrc.map(tc => ({ input: tc.input || "", output: tc.output || tc.expectedOutput || "", isHidden: false })),
+      ...hiddenSrc.map(tc => ({ input: tc.input || "", output: tc.output || "", isHidden: true })),
+      ...fallback.map(tc => ({ input: tc.input || "", output: tc.output || tc.expectedOutput || "", isHidden: tc.isHidden || false })),
     ];
 
-    const evaluation = await evaluateCode(code, language, allTestCases, problem.timeLimit, problem.memoryLimit);
+    const evaluation = await evaluateCode(code, language, allTestCases, problem.timeLimit, problem.memoryLimit, problem.functionMetadata);
 
     // Rule: Points only for 100% pass, and only count once per distinct problem
     let finalScore = 0;

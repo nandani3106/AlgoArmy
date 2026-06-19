@@ -129,7 +129,8 @@ export const runOACode = async (req, res) => {
       language, 
       testCases, 
       question.timeLimit || 2, 
-      question.memoryLimit || 256
+      question.memoryLimit || 256,
+      question.functionMetadata
     );
 
     res.status(200).json({ success: true, ...evaluation });
@@ -169,7 +170,8 @@ export const submitOAQuestion = async (req, res) => {
       language, 
       allTestCases, 
       question.timeLimit || 2, 
-      question.memoryLimit || 256
+      question.memoryLimit || 256,
+      question.functionMetadata
     );
 
     res.status(200).json({ success: true, ...evaluation });

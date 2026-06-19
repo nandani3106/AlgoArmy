@@ -84,6 +84,17 @@ export const login = async (req, res) => {
 
     // Admin Credentials Check
     if (email === "admin@algoarmy.com" && password === "Admin@123") {
+      let adminUser = await User.findById("ad11ad11ad11ad11ad11ad11");
+      if (!adminUser) {
+        adminUser = await User.create({
+          _id: "ad11ad11ad11ad11ad11ad11",
+          fullName: "Administrator",
+          email: "admin@algoarmy.com",
+          password: "Admin@123",
+          role: "admin",
+        });
+      }
+
       const token = jwt.sign({ id: "ad11ad11ad11ad11ad11ad11", role: "admin", fullName: "Administrator", email: "admin@algoarmy.com" }, process.env.JWT_SECRET, {
         expiresIn: "7d",
       });

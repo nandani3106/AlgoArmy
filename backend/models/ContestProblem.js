@@ -51,6 +51,16 @@ const contestProblemSchema = new mongoose.Schema({
     python: String,
     javascript: String,
   },
+  functionMetadata: {
+    functionName: String,
+    returnType: String,
+    parameters: [
+      {
+        type: { type: String },
+        name: String
+      }
+    ]
+  },
   createdAt: { type: Date, default: Date.now },
 });
 

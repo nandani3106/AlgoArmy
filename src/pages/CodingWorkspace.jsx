@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Play, Send, Clock, ChevronLeft, ChevronRight, Settings,
@@ -48,6 +48,10 @@ const CodingWorkspace = () => {
   const [customInput, setCustomInput] = useState('');
   const [isCustomInputActive, setIsCustomInputActive] = useState(false);
   const [submissions, setSubmissions] = useState([]);
+
+  // Ref so code-loading effect can read latest problems without depending on them
+  const problemsRef = useRef([]);
+  useEffect(() => { problemsRef.current = problems; }, [problems]);
 
   // Mobile rendering states
   const [activeMobileTab, setActiveMobileTab] = useState('problem'); // 'problem', 'editor', 'console'
@@ -141,10 +145,17 @@ const CodingWorkspace = () => {
   useEffect(() => {
     if (questionId && questionId !== '1') {
       const savedCode = localStorage.getItem(getStorageKey(questionId, language));
-      setCode(savedCode || STARTER_TEMPLATES[language]);
+      if (savedCode) {
+        setCode(savedCode);
+      } else {
+        // Use problem's starter code if defined, else fall back to generic template
+        const currentP = problemsRef.current.find(p => p._id === questionId) || problemsRef.current[0];
+        const problemStarter = currentP?.starterCode?.[language];
+        setCode(problemStarter || STARTER_TEMPLATES[language]);
+      }
       fetchSubmissions();
     }
-  }, [language, questionId, getStorageKey, fetchSubmissions]);
+  }, [language, questionId, getStorageKey, fetchSubmissions]); // problems via ref — not a dependency
 
   // Save code changes to localStorage
   useEffect(() => {
@@ -384,8 +395,9 @@ const CodingWorkspace = () => {
 
         <button
           onClick={() => {
-            if (window.confirm("Reset editor to starter templates?")) {
-              setCode(STARTER_TEMPLATES[language]);
+            if (window.confirm("Reset editor to problem's starter code?")) {
+              const problemStarter = currentProblem?.starterCode?.[language];
+              setCode(problemStarter || STARTER_TEMPLATES[language]);
             }
           }}
           className="p-1.5 bg-[#1a1c2e] border border-[#2b3052] rounded-lg text-slate-400 hover:text-white transition-all"

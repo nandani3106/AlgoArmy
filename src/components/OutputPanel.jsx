@@ -250,12 +250,12 @@ const OutputPanel = ({
                           <div className="px-6 pb-6 pt-2 space-y-4 border-t border-[#1e293b] bg-black/25 text-left">
                             <div className="space-y-2">
                               <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Input</p>
-                              <pre className="bg-[#111322] p-4 rounded-xl border border-[#1e293b] text-slate-300 font-mono text-xs overflow-x-auto whitespace-pre">{tc.input}</pre>
+                              <pre className="bg-[#111322] p-4 rounded-xl border border-[#1e293b] text-slate-300 font-mono text-xs overflow-x-auto whitespace-pre">{tc.input || <span className="text-slate-600 italic">empty</span>}</pre>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-2">
                                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Expected Output</p>
-                                <pre className="bg-[#111322] p-4 rounded-xl border border-[#1e293b] text-emerald-400/80 font-mono text-xs overflow-x-auto whitespace-pre">{tc.expected}</pre>
+                                <pre className="bg-[#111322] p-4 rounded-xl border border-[#1e293b] text-emerald-400/80 font-mono text-xs overflow-x-auto whitespace-pre">{tc.expected || <span className="text-slate-600 italic">empty</span>}</pre>
                               </div>
                               <div className="space-y-2">
                                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Actual Output</p>
@@ -278,6 +278,14 @@ const OutputPanel = ({
                         )}
                       </div>
                     ))}
+                  </div>
+                ) : verdict === 'No Test Cases' ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-slate-500 gap-3 border border-dashed border-amber-500/30 rounded-[2.5rem] bg-amber-500/5">
+                    <AlertCircle size={32} className="text-amber-500" />
+                    <p className="text-xs font-bold uppercase tracking-widest text-amber-400">No Test Cases Configured</p>
+                    <p className="text-[10px] text-slate-500 font-bold max-w-xs text-center leading-relaxed">
+                      This problem has no test cases set up yet. Ask your admin to add visible test cases in the problem settings.
+                    </p>
                   </div>
                 ) : (
                   // Default Welcome / Placeholder Case
