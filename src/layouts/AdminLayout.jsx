@@ -81,7 +81,7 @@ export default function AdminLayout() {
   return (
     <div className={`flex min-h-screen ${isDark ? 'bg-[#0a0a0f]' : 'bg-[#F8F4EC]'}`}>
       {/* SIDEBAR */}
-      <aside className={`w-72 border-r p-6 flex flex-col fixed left-0 top-0 h-screen z-40 ${
+      <aside className={`w-72 border-r p-6 flex flex-col fixed left-0 top-0 h-screen z-40 overflow-y-auto ${
         isDark 
           ? 'bg-[#0f1117] border-[#1e293b]' 
           : 'bg-white border-[#ECE7DF]'

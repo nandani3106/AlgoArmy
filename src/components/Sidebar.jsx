@@ -18,7 +18,7 @@ const Sidebar = () => {
   ];
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-72 bg-white border-r border-orange-100/50 flex flex-col z-40">
+    <aside className="fixed left-0 top-0 h-screen w-72 bg-white border-r border-orange-100/50 flex flex-col z-40 overflow-y-auto">
       {/* Logo Section */}
       <div className="p-8 flex items-center gap-3">
         <BrandLogo size="sm" showText={false} clickable={true} />
