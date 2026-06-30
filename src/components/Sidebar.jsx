@@ -7,6 +7,18 @@ import BrandLogo from './BrandLogo';
 const Sidebar = () => {
   const { isDark, toggleTheme } = useTheme();
 
+  const userStr = localStorage.getItem('user');
+  let user = null;
+  try {
+    user = userStr ? JSON.parse(userStr) : null;
+  } catch (e) {}
+
+  const displayName = user?.fullName || 'Candidate';
+  const displayRole = user?.role 
+    ? `${user.role.charAt(0).toUpperCase() + user.role.slice(1)}` 
+    : 'Candidate';
+  const profilePic = user?.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=0B1B3B&color=fff`;
+
   const menuItems = [
     { label: 'Dashboard', path: '/dashboard' },
     { label: 'Contests', path: '/contests' },
@@ -18,7 +30,7 @@ const Sidebar = () => {
   ];
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-72 bg-white border-r border-orange-100/50 flex flex-col z-40 overflow-y-auto">
+    <aside className="fixed left-0 top-0 h-screen w-72 bg-white border-r border-orange-100/50 flex flex-col z-40 overflow-y-auto sidebar-scrollbar">
       {/* Logo Section */}
       <div className="p-8 flex items-center gap-3">
         <BrandLogo size="sm" showText={false} clickable={true} />
@@ -47,7 +59,7 @@ const Sidebar = () => {
       </nav>
 
       {/* Bottom Actions */}
-      <div className="p-4 mt-auto space-y-2">
+      <div className="p-4 space-y-2">
         <button
           onClick={() => {
             localStorage.removeItem("token");
@@ -79,12 +91,12 @@ const Sidebar = () => {
           onClick={() => window.location.href = '/profile'}
           className="bg-orange-50 rounded-2xl p-4 flex items-center gap-3 cursor-pointer hover:bg-orange-100/50 transition-all"
         >
-          <div className="w-10 h-10 rounded-xl overflow-hidden border-2 border-white shadow-sm">
-            <img src="https://ui-avatars.com/api/?name=Nandani&background=0B1B3B&color=fff" alt="User" />
+          <div className="w-10 h-10 rounded-xl overflow-hidden border-2 border-white shadow-sm flex items-center justify-center bg-white">
+            <img src={profilePic} alt={displayName} className="w-full h-full object-cover" />
           </div>
-          <div className="flex-1">
-            <p className="text-xs font-black text-[#0B1B3B]">Nandani </p>
-            <p className="text-[10px] text-orange-600 font-bold uppercase tracking-tighter">Level 24 Candidate</p>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-black text-[#0B1B3B] truncate">{displayName}</p>
+            <p className="text-[10px] text-orange-600 font-bold uppercase tracking-tighter truncate">{displayRole}</p>
           </div>
         </div>
       </div>

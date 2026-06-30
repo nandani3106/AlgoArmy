@@ -68,6 +68,27 @@ body {
   background: #fed7aa;
 }
 
+/* Sidebar scrollbar styles */
+.sidebar-scrollbar {
+  scrollbar-width: thin !important;
+  scrollbar-color: #94a3b8 transparent !important;
+}
+.sidebar-scrollbar::-webkit-scrollbar {
+  width: 6px !important;
+  height: 6px !important;
+  display: block !important;
+}
+.sidebar-scrollbar::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+.sidebar-scrollbar::-webkit-scrollbar-thumb {
+  background: #94a3b8 !important;
+  border-radius: 9999px !important;
+}
+.sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #64748b !important;
+}
+
 @keyframes progress {
   0% { width: 0%; }
   100% { width: 100%; }
@@ -234,6 +255,16 @@ body {
 }
 .dark ::-webkit-scrollbar-thumb:hover {
   background: #475569;
+}
+
+.dark .sidebar-scrollbar {
+  scrollbar-color: #475569 transparent !important;
+}
+.dark .sidebar-scrollbar::-webkit-scrollbar-thumb {
+  background: #475569 !important;
+}
+.dark .sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #64748b !important;
 }
 
 /* Sidebar profile card */
